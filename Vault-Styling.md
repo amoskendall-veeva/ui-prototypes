@@ -1,3 +1,8 @@
+---
+layout: default
+title: Veeva Vault UI Styling & Layout Guidelines
+---
+
 # Veeva Vault UI Styling & Layout Guidelines
 
 Use this prompt as a reference when building new pages to ensure consistency with the Veeva Vault UI Kit. It defines the core global styles, common structural components, and specific layout patterns based on the "Type of Page".
