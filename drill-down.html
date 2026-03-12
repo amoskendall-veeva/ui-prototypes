@@ -702,7 +702,7 @@
         // If best period != most recent, show banner
         if (bestPeriod !== 0) {
             showDrillBanner = true;
-            drillBannerText = `Jumped to ${timePeriods[bestPeriod].label} \u2014 this time period has the most records for ${variantId}.`;
+            drillBannerText = `Showing most recent period that contains this variant: ${timePeriods[bestPeriod].label}`;
             currentPeriodIdx = bestPeriod;
         } else {
             showDrillBanner = false;
