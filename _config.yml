@@ -1,0 +1,6 @@
+remote_theme: pages-themes/cayman
+title: UI Prototypes
+description: A collection of static UI prototypes hosted on GitHub Pages.
+show_downloads: true
+google_analytics:
+theme: jekyll-theme-cayman
