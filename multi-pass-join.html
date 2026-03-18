@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Pass Handoff Prototype</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* Brand Colors */
+            --veeva-blue: #1453b8;
+            --veeva-blue-hover: #0f4092;
+            --veeva-orange: #f8972b;
+            --vault-header-bg: #061937;
+
+            /* UI Colors */
+            --text-main: #1d1d1d;
+            --text-muted: #808080;
+            --border-color: #e5e7eb;
+            --sidebar-bg: #f8f8f8;
+            --grid-header-bg: #c0c0c0;
+            --page-bg: #ffffff;
+
+            /* Specialized Context Colors */
+            --tp-bar-bg: #f0f6ff;
+            --info-banner-bg: #fffbe6;
+            --info-banner-border: #f0e68c;
+            --graph-step-stroke: #b0b0b0;
+            --graph-hover-bg: #f0f6ff;
+
+            /* Process Graph Node Colors */
+            --node-start-bg: #e8f5e9;
+            --node-start-stroke: #66bb6a;
+            --node-end-bg: #fce4ec;
+            --node-end-stroke: #ef9a9a;
+            --node-default-bg: #ffffff;
+            --node-default-stroke: #b0b0b0;
+            --node-join-bg: #fffbe6;
+            --node-join-stroke: var(--veeva-orange);
+        }
+        body {
+            font-family: 'Roboto', sans-serif;
+            color: var(--text-main);
+            background-color: var(--page-bg);
+            margin: 0;
+        }
+        /* Tab Styles */
+        .tab-btn {
+            font-size: 14px;
+            color: #1d1d1d;
+            padding: 10px 16px;
+            cursor: pointer;
+            border-bottom: 4px solid transparent;
+        }
+        .tab-btn:hover:not(.active) {
+            background-color: #eee;
+        }
+        .tab-btn.active {
+            background-color: white;
+            border-bottom-color: var(--veeva-orange);
+            font-weight: bold;
+        }
+
+        /* Section Tabs */
+        .section-tab {
+            color: #666;
+            border-bottom: 2px solid transparent;
+            padding: 10px 16px;
+            cursor: pointer;
+        }
+        .section-tab.active {
+            color: var(--veeva-blue);
+            border-bottom-color: var(--veeva-blue);
+            font-weight: 600;
+        }
+        .section-tab:hover:not(.active) {
+            color: var(--text-main);
+        }
+
+        .btn-primary {
+            background-color: var(--veeva-blue);
+            color: white;
+            border-radius: 4px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            font-size: 14px;
+            font-weight: 500;
+            padding: 6px 16px;
+            cursor: pointer;
+        }
+        .btn-primary:hover {
+            background-color: var(--veeva-blue-hover);
+        }
+
+        /* Metrics Cards */
+        .metrics-bar {
+            display: flex;
+            gap: 12px;
+            font-size: 13px;
+        }
+        .metrics-group {
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            overflow: hidden;
+            background: white;
+            min-width: 160px;
+        }
+        .metrics-group-header {
+            background: #f0f6ff;
+            font-weight: 700;
+            font-size: 11px;
+            padding: 4px 10px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-main);
+            text-transform: uppercase;
+        }
+        .metrics-group-body {
+            display: flex;
+        }
+        .metric-cell {
+            flex: 1;
+            padding: 6px 10px;
+            border-right: 1px solid #f0f0f0;
+        }
+        .metric-cell:last-child {
+            border-right: none;
+        }
+        .metric-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-bottom: 1px;
+        }
+        .metric-value {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        /* Variant Bar Chart */
+        .variant-panel {
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background: white;
+            min-width: 240px;
+            max-width: 280px;
+            flex-shrink: 0;
+        }
+        .variant-row {
+            display: flex;
+            align-items: center;
+            padding: 6px 12px;
+            gap: 8px;
+            font-size: 12px;
+            cursor: pointer;
+            border-left: 3px solid transparent;
+        }
+        .variant-row.selected {
+            background: #eef4ff;
+            border-left-color: var(--veeva-blue);
+        }
+        .variant-row.selected .variant-num {
+            font-weight: bold;
+            color: var(--veeva-blue);
+        }
+
+        /* Joined Graph Styling */
+        .joined-graph-container {
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        /* Interactivity */
+        .graph-node, .graph-edge {
+            transition: opacity 0.2s, fill 0.2s, stroke 0.2s;
+        }
+        .fade-out {
+            opacity: 0.1 !important;
+        }
+
+        /* Cycle Time Highlighting */
+        .ct-start-active rect {
+            fill: #4caf50 !important;
+            stroke: #2e7d32 !important;
+            stroke-width: 3px !important;
+        }
+        .ct-start-active text {
+            fill: white !important;
+        }
+        .ct-end-active rect {
+            fill: #f44336 !important;
+            stroke: #c62828 !important;
+            stroke-width: 3px !important;
+        }
+        .ct-end-active text {
+            fill: white !important;
+        }
+
+        .zoom-btn {
+            width: 24px;
+            height: 24px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+        .zoom-btn:hover {
+            background: #f8f8f8;
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen">
+
+    <!-- Global Header -->
+    <header class="h-[88px] flex flex-col w-full flex-shrink-0">
+        <div class="h-[48px] bg-[var(--vault-header-bg)] flex items-center justify-between px-4">
+            <div class="flex items-center gap-2">
+                <span class="text-[var(--veeva-orange)] font-bold text-xl tracking-tight">Veeva</span>
+                <span class="text-white font-bold text-xl tracking-tight">Vault</span>
+            </div>
+            <div class="flex-1 max-w-[500px] mx-8">
+                <div class="flex items-center bg-white rounded h-[32px] overflow-hidden">
+                    <select class="h-full px-2 border-r border-gray-300 text-[13px] text-gray-700 bg-gray-50 focus:outline-none">
+                        <option>All Data</option>
+                    </select>
+                    <input type="text" placeholder="Search" class="flex-1 h-full px-3 text-[13px] focus:outline-none">
+                    <button class="px-3 h-full bg-white flex items-center justify-center border-l border-gray-200">
+                        <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="flex items-center gap-4 text-white">
+                <div class="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center text-xs font-bold">AK</div>
+            </div>
+        </div>
+        <div class="h-[40px] bg-[#f8f8f8] flex items-end justify-between px-4 border-b border-[#e5e7eb]">
+            <div class="flex h-full items-end" id="main-tabs">
+                <div class="tab-btn active h-full flex items-center" onclick="switchTab('admin-tab')">Admin</div>
+                <div class="tab-btn h-full flex items-center" onclick="switchTab('monitor-tab')">Process Monitor</div>
+            </div>
+            <div class="mb-1">
+                <button class="btn-primary">Save Configuration</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 flex overflow-hidden">
+
+        <!-- Admin Tab -->
+        <div id="admin-tab" class="flex-1 flex overflow-auto w-full">
+            <div class="w-[261px] bg-[#f8f8f8] border-r border-[#eee] flex-shrink-0 flex flex-col">
+                <div class="h-[40px] flex items-center px-4 border-b border-[#eee]">
+                    <span class="text-[14px] uppercase font-bold text-gray-700">Settings</span>
+                </div>
+                <div class="flex-1 py-2">
+                    <div class="h-[32px] px-[34px] text-[12px] flex items-center gap-2 bg-white border-l-4 border-[#f8972b] font-bold text-[#1d1d1d] cursor-pointer">Process Joins</div>
+                    <div class="h-[32px] px-[34px] text-[12px] flex items-center gap-2 text-gray-600 hover:text-[#1d1d1d] hover:bg-white cursor-pointer">General Settings</div>
+                </div>
+            </div>
+            <div class="flex-1 p-6 overflow-auto">
+                <div class="max-w-[800px]">
+                    <div class="h-[56px] border-b-2 border-[#f8972b] flex items-center mb-6">
+                        <h1 class="text-[20px] text-[#1d1d1d]">Configure Process Join</h1>
+                    </div>
+                    <div class="flex flex-col gap-6">
+                        <div class="flex flex-col gap-2">
+                            <label class="text-[12px] font-bold text-gray-700 uppercase">Label for the Join Results</label>
+                            <input type="text" class="border border-gray-300 rounded px-3 py-2 text-[13px] w-full max-w-[400px]" placeholder="e.g. Inbox to Case Join">
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <div class="flex flex-col gap-2 w-[300px]">
+                                <label class="text-[12px] font-bold text-gray-700 uppercase">Left Process</label>
+                                <select class="border border-gray-300 rounded px-3 py-2 text-[13px]"><option>Inbox Item</option></select>
+                            </div>
+                            <div class="flex flex-col gap-2 w-[300px]">
+                                <label class="text-[12px] font-bold text-gray-700 uppercase">Right Process</label>
+                                <select class="border border-gray-300 rounded px-3 py-2 text-[13px]"><option>Case</option></select>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <div class="flex flex-col gap-2 w-[300px]">
+                                <label class="text-[12px] font-bold text-gray-700 uppercase">Left Key</label>
+                                <select class="border border-gray-300 rounded px-3 py-2 text-[13px]"><option>id__v</option></select>
+                            </div>
+                            <div class="flex flex-col gap-2 w-[300px]">
+                                <label class="text-[12px] font-bold text-gray-700 uppercase">Right Key</label>
+                                <select class="border border-gray-300 rounded px-3 py-2 text-[13px]"><option>inbox_item_id__c</option></select>
+                            </div>
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <label class="text-[12px] font-bold text-gray-700 uppercase">Join Type</label>
+                            <div class="flex gap-4">
+                                <label class="flex items-center gap-1 text-[13px]"><input type="radio" name="join-type" value="1:1 inner" onchange="toggleResolution()" checked> 1:1 Inner</label>
+                                <label class="flex items-center gap-1 text-[13px]"><input type="radio" name="join-type" value="1:many" onchange="toggleResolution()"> 1:Many</label>
+                            </div>
+                        </div>
+                        <div id="resolution-settings" class="flex flex-col gap-2 hidden">
+                            <label class="text-[12px] font-bold text-gray-700 uppercase">Right Resolution</label>
+                            <select class="border border-gray-300 rounded px-3 py-2 text-[13px] w-full max-w-[400px]">
+                                <option>First Created</option>
+                                <option>Last Created</option>
+                                <option>First Completed</option>
+                                <option>Last Completed</option>
+                            </select>
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <label class="text-[12px] font-bold text-gray-700 uppercase">State Join Criteria</label>
+                            <div class="flex items-center gap-4">
+                                <select class="border border-gray-300 rounded px-3 py-2 text-[13px] w-[300px]"><option>Inbox Item - Completed</option></select>
+                                <div class="text-gray-400 font-bold">+</div>
+                                <select class="border border-gray-300 rounded px-3 py-2 text-[13px] w-[300px]"><option>Case - Created</option></select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Process Monitor Tab -->
+        <div id="monitor-tab" class="flex-1 flex flex-col hidden w-full overflow-hidden">
+            
+            <div class="bg-white border-b flex-shrink-0">
+                <div class="flex items-center justify-between px-4 py-2">
+                    <div class="flex flex-col">
+                        <div class="text-[11px] text-[var(--veeva-blue)] uppercase font-semibold">Process Monitor</div>
+                        <h2 class="text-[18px] font-normal text-[var(--text-main)]" id="monitor-title">Inbox Item → Case Process</h2>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button class="border border-gray-300 bg-white text-[13px] px-3 py-1 rounded cursor-pointer">Save</button>
+                        <button class="btn-primary text-[13px] px-4 py-1">Run</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex-1 flex overflow-hidden">
+                <!-- Sidebar (Config Panel) -->
+                <div class="w-[220px] bg-[#f8f8f8] border-r border-[#eee] flex flex-col overflow-y-auto flex-shrink-0 pt-4">
+                    <div class="px-4 flex flex-col gap-5">
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[11px] font-bold text-gray-700 uppercase">Process</label>
+                            <select id="process-select" class="border border-gray-300 rounded px-2 py-1.5 text-[13px]" onchange="updateCycleTime()">
+                                <option value="inbox-case">inbox item -> case</option>
+                                <option value="events-activities">Events with Activities</option>
+                            </select>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[11px] font-bold text-gray-700 uppercase">Cycle Time Start</label>
+                            <select id="ct-start" class="border border-gray-300 rounded px-2 py-1.5 text-[13px]" onchange="updateMetrics()">
+                                <!-- Populated by JS -->
+                            </select>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[11px] font-bold text-gray-700 uppercase">Cycle Time End</label>
+                            <select id="ct-end" class="border border-gray-300 rounded px-2 py-1.5 text-[13px]" onchange="updateMetrics()">
+                                <!-- Populated by JS -->
+                            </select>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[11px] font-bold text-gray-700 uppercase">Timeframe</label>
+                            <select class="border border-gray-300 rounded px-2 py-1.5 text-[13px]"><option>Last 3 months</option></select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Main Content -->
+                <div class="flex-1 flex flex-col bg-[#fafafa] overflow-hidden pt-4">
+                    <!-- Metrics Row -->
+                    <div class="px-6 flex-shrink-0" id="metrics-bar-container">
+                        <div class="metrics-bar">
+                            <div class="metrics-group">
+                                <div class="metrics-group-header">Cycle Time (Days)</div>
+                                <div class="metrics-group-body">
+                                    <div class="metric-cell"><div class="metric-label">Avg</div><div class="metric-value" id="avg-metric">18.4</div></div>
+                                    <div class="metric-cell"><div class="metric-label">Med</div><div class="metric-value" id="med-metric">15.0</div></div>
+                                </div>
+                            </div>                            <div class="metrics-group">
+                                <div class="metrics-group-header">Volume</div>
+                                <div class="metrics-group-body">
+                                    <div class="metric-cell"><div class="metric-label">Start</div><div class="metric-value">87</div></div>
+                                    <div class="metric-cell"><div class="metric-label">End</div><div class="metric-value">87</div></div>
+                                </div>
+                            </div>
+                            <div class="metrics-group">
+                                <div class="metrics-group-header">Quality</div>
+                                <div class="metrics-group-body">
+                                    <div class="metric-cell"><div class="metric-label">Success %</div><div class="metric-value">96.5%</div></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section Tabs -->
+                    <div class="px-6 mt-4 border-b border-[var(--border-color)] bg-white flex-shrink-0">
+                        <div class="flex">
+                            <div class="section-tab">Overview</div>
+                            <div class="section-tab active">Process Graph</div>
+                            <div class="section-tab">Records</div>
+                        </div>
+                    </div>
+
+                    <!-- Toolbar -->
+                    <div class="h-[40px] bg-[var(--tp-bar-bg)] border-b border-[var(--border-color)] flex items-center px-6 gap-4 flex-shrink-0">
+                        <div class="ml-auto flex items-center gap-4">
+                            <div class="zoom-controls flex items-center gap-2">
+                                <button class="zoom-btn" onclick="zoom(-1)">-</button>
+                                <span id="zoom-level" class="text-[12px]">85%</span>
+                                <button class="zoom-btn" onclick="zoom(1)">+</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex-1 flex p-6 overflow-auto" id="graph-container">
+                        <div id="joined-view" class="flex items-start gap-4">
+                            
+                            <!-- Left: Variant Panel -->
+                            <div class="variant-panel self-start">
+                                <div class="variant-panel-header px-4 pt-3 text-[13px]">Inbox Item Variants</div>
+                                <div class="variant-panel-subtitle px-4 pb-2 text-[11px] text-gray-500">Filter by variant path</div>
+                                <div class="pb-2 border-t mt-1" id="left-variants">
+                                    <div class="variant-row selected" onclick="toggleVariant('left', 0)">
+                                        <span class="variant-num w-4 text-right text-[11px]">1</span>
+                                        <div class="variant-bar-track flex-1 h-3 bg-gray-100 rounded overflow-hidden">
+                                            <div class="variant-bar-fill h-full bg-[#1453b8]" style="width:85%"></div>
+                                        </div>
+                                        <span class="variant-days w-10 text-right text-[11px]">5.2d</span>
+                                    </div>
+                                    <div class="variant-row" onclick="toggleVariant('left', 1)">
+                                        <span class="variant-num w-4 text-right text-[11px]">2</span>
+                                        <div class="variant-bar-track flex-1 h-3 bg-gray-100 rounded overflow-hidden">
+                                            <div class="variant-bar-fill h-full bg-[#1453b8]" style="width:15%"></div>
+                                        </div>
+                                        <span class="variant-days w-10 text-right text-[11px]">8.1d</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Unified Joined Graph Panel -->
+                            <div class="joined-graph-container self-start">
+                                <div class="bg-[#fafafa] border-b p-2 flex justify-between">
+                                    <div class="text-[10px] uppercase font-bold text-gray-500 tracking-wider flex-1 text-center border-r">Inbox Item Process</div>
+                                    <div class="text-[10px] uppercase font-bold text-gray-500 tracking-wider w-[150px] text-center">Handoff</div>
+                                    <div class="text-[10px] uppercase font-bold text-gray-500 tracking-wider flex-1 text-center border-l">Case Process</div>
+                                </div>
+                                <div class="p-6">
+                                    <svg width="910" height="540" viewBox="0 0 910 540" id="main-svg">
+                                        <defs>
+                                            <marker id="ah-gray" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#999"/></marker>
+                                            <marker id="ah-orange" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="var(--veeva-orange)"/></marker>
+                                            <marker id="ah-rework" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#cc4444"/></marker>
+                                        </defs>
+
+                                        <!-- LEFT PROCESS -->
+                                        <g id="left-process-group">
+                                            <!-- Node 0: Received -->
+                                            <g class="graph-node" data-state="0">
+                                                <rect x="115" y="15" width="150" height="44" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/>
+                                                <text x="190" y="34" text-anchor="middle" font-size="12" font-weight="600" fill="var(--text-main)">Received</text>
+                                                <text x="190" y="50" text-anchor="middle" font-size="10" fill="var(--text-muted)" class="node-stats" data-base-count="87" data-base-days="1.2">87 | 1.2 Days</text>
+                                            </g>
+                                            <path class="graph-edge" data-edge="0-1" d="M190 59 L190 95" stroke="#999" stroke-width="2" marker-end="url(#ah-gray)"/>
+                                            
+                                            <!-- Node 1: Triage -->
+                                            <g class="graph-node" data-state="1">
+                                                <rect x="115" y="95" width="150" height="44" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/>
+                                                <text x="190" y="114" text-anchor="middle" font-size="12" font-weight="600" fill="var(--text-main)">Triage</text>
+                                                <text x="190" y="130" text-anchor="middle" font-size="10" fill="var(--text-muted)" class="node-stats" data-base-count="87" data-base-days="2.8">87 | 2.8 Days</text>
+                                            </g>
+                                            
+                                            <!-- Main Path Edge -->
+                                            <path class="graph-edge main-path-left" data-edge="1-2" d="M190 139 L190 180" stroke="#999" stroke-width="2" marker-end="url(#ah-gray)"/>
+                                            
+                                            <!-- Node Alt: Deferred (Variant 2 Only) -->
+                                            <g class="graph-node variant-2-only" data-state="alt-l">
+                                                <rect x="280" y="135" width="85" height="38" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/>
+                                                <text x="322" y="151" text-anchor="middle" font-size="11" font-weight="600">Deferred</text>
+                                                <text x="322" y="165" text-anchor="middle" font-size="9" fill="var(--text-muted)" class="node-stats" data-base-count="13" data-base-days="4.1">13 | 4.1 Days</text>
+                                            </g>
+                                            <path class="graph-edge variant-2-only" d="M265 117 Q322 117 322 135" stroke="#999" stroke-width="1.5" fill="none" marker-end="url(#ah-gray)"/>
+                                            <path class="graph-edge variant-2-only" d="M322 173 Q322 202 265 202" stroke="#999" stroke-width="1.5" fill="none" marker-end="url(#ah-gray)"/>
+
+                                            <!-- Node 2: In Review -->
+                                            <g class="graph-node" data-state="2">
+                                                <rect x="115" y="180" width="150" height="44" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/>
+                                                <text x="190" y="199" text-anchor="middle" font-size="12" font-weight="600">In Review</text>
+                                                <text x="190" y="215" text-anchor="middle" font-size="10" fill="var(--text-muted)" class="node-stats" data-base-count="87" data-base-days="3.5">87 | 3.5 Days</text>
+                                            </g>
+                                            <path class="graph-edge" data-edge="2-3" d="M190 224 L190 265" stroke="#999" stroke-width="2" marker-end="url(#ah-gray)"/>
+                                            
+                                            <!-- Node 3: Approved -->
+                                            <g class="graph-node" data-state="3">
+                                                <rect x="115" y="265" width="150" height="44" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/>
+                                                <text x="190" y="284" text-anchor="middle" font-size="12" font-weight="600">Approved</text>
+                                                <text x="190" y="300" text-anchor="middle" font-size="10" fill="var(--text-muted)" class="node-stats" data-base-count="87" data-base-days="1.1">87 | 1.1 Days</text>
+                                            </g>
+                                            <path class="graph-edge" data-edge="3-4" d="M190 309 L190 350" stroke="#999" stroke-width="2" marker-end="url(#ah-gray)"/>
+                                            
+                                            <!-- Node 4: Completed -->
+                                            <g class="graph-node" data-state="4">
+                                                <rect x="100" y="350" width="180" height="44" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5" id="left-completed-pill"/>
+                                                <text x="190" y="369" text-anchor="middle" font-size="12" font-weight="600">Completed</text>
+                                                <text x="190" y="385" text-anchor="middle" font-size="10" fill="var(--text-muted)" class="node-stats" data-base-count="87" data-base-days="0.8">87 | 0.8 Days</text>
+                                            </g>
+                                        </g>
+
+                                        <!-- HANDOFF PILLBOX -->
+                                        <g id="handoff-group" class="graph-node" data-state="5">
+                                            <path class="graph-edge" data-edge="4-5" d="M 280 372 L 350 372 Q 455 372 455 250" stroke="var(--veeva-orange)" stroke-width="2.5" stroke-dasharray="6,4" fill="none"/>
+                                            <rect x="380" y="185" width="150" height="44" rx="6" fill="white" stroke="var(--node-default-stroke)" stroke-width="1.5"/>
+                                            <text x="455" y="204" text-anchor="middle" font-size="12" font-weight="700" fill="var(--text-main)">HANDOFF</text>
+                                            <text x="455" y="220" text-anchor="middle" font-size="10" fill="var(--text-muted)" class="node-stats" data-base-count="87" data-base-days="0.2">87 | 0.2 Days</text>
+                                            <path class="graph-edge" data-edge="5-6" d="M 455 185 Q 455 37 560 37 L 630 37" stroke="var(--veeva-orange)" stroke-width="2.5" stroke-dasharray="6,4" fill="none" marker-end="url(#ah-orange)"/>
+                                        </g>
+
+                                        <!-- RIGHT PROCESS -->
+                                        <g id="right-process-group" transform="translate(530, 0)">
+                                            <!-- Node 6: Created -->
+                                            <g class="graph-node" data-state="6">
+                                                <rect x="100" y="15" width="180" height="44" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5" id="right-created-pill"/>
+                                                <text x="190" y="34" text-anchor="middle" font-size="12" font-weight="600">Created</text>
+                                                <text x="190" y="50" text-anchor="middle" font-size="10" fill="var(--text-muted)" class="node-stats" data-base-count="87" data-base-days="0.5">87 | 0.5 Days</text>
+                                            </g>
+                                            <path class="graph-edge" data-edge="6-7" d="M190 59 L190 95" stroke="#999" stroke-width="2" marker-end="url(#ah-gray)"/>
+                                            
+                                            <!-- Node 7: Assessment -->
+                                            <g class="graph-node" data-state="7">
+                                                <rect x="115" y="95" width="150" height="44" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/>
+                                                <text x="190" y="114" text-anchor="middle" font-size="12" font-weight="600">Assessment</text>
+                                                <text x="190" y="130" text-anchor="middle" font-size="10" fill="var(--text-muted)" class="node-stats" data-base-count="87" data-base-days="3.2">87 | 3.2 Days</text>
+                                            </g>
+                                            
+                                            <!-- Main Path Edge -->
+                                            <path class="graph-edge main-path-right" data-edge="7-8" d="M170 139 L170 180" stroke="#999" stroke-width="2" marker-end="url(#ah-gray)"/>
+                                            
+                                            <!-- Node Alt: Fast Track (Variant 2 Only) -->
+                                            <g class="graph-node variant-2-only-right" data-state="alt-r">
+                                                <rect x="280" y="180" width="85" height="38" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/>
+                                                <text x="322" y="196" text-anchor="middle" font-size="11" font-weight="600">Fast Track</text>
+                                                <text x="322" y="210" text-anchor="middle" font-size="9" fill="var(--text-muted)" class="node-stats" data-base-count="15" data-base-days="1.3">15 | 1.3 Days</text>
+                                            </g>
+                                            <path class="graph-edge variant-2-only-right" d="M250 130 Q322 145 322 180" stroke="#999" stroke-width="1.5" fill="none" marker-end="url(#ah-gray)"/>
+
+                                            <!-- Node 8: Investigation -->
+                                            <g class="graph-node" data-state="8">
+                                                <rect x="95" y="180" width="150" height="44" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/>
+                                                <text x="170" y="199" text-anchor="middle" font-size="12" font-weight="600">Investigation</text>
+                                                <text x="170" y="215" text-anchor="middle" font-size="10" fill="var(--text-muted)" class="node-stats" data-base-count="72" data-base-days="4.8">72 | 4.8 Days</text>
+                                            </g>
+                                            
+                                            <!-- Merge edges -->
+                                            <path class="graph-edge" data-edge="8-9" d="M170 224 L170 270" stroke="#999" stroke-width="2" marker-end="url(#ah-gray)"/>
+                                            <path class="graph-edge variant-2-only-right" d="M322 218 Q322 245 240 260 L210 270" stroke="#999" stroke-width="1.5" fill="none" marker-end="url(#ah-gray)"/>
+
+                                            <!-- Node 9: Resolution -->
+                                            <g class="graph-node" data-state="9">
+                                                <rect x="115" y="270" width="150" height="44" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/>
+                                                <text x="190" y="289" text-anchor="middle" font-size="12" font-weight="600">Resolution</text>
+                                                <text x="190" y="305" text-anchor="middle" font-size="10" fill="var(--text-muted)" class="node-stats" data-base-count="87" data-base-days="2.1">87 | 2.1 Days</text>
+                                            </g>
+                                            <path class="graph-edge" data-edge="9-10" d="M190 314 L190 355" stroke="#999" stroke-width="2" marker-end="url(#ah-gray)"/>
+                                            
+                                            <!-- Node 10: Pending Approval -->
+                                            <g class="graph-node" data-state="10">
+                                                <rect x="105" y="355" width="170" height="44" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/>
+                                                <text x="190" y="374" text-anchor="middle" font-size="12" font-weight="600">Pending Approval</text>
+                                                <text x="190" y="390" text-anchor="middle" font-size="10" fill="var(--text-muted)" class="node-stats" data-base-count="87" data-base-days="1.5">87 | 1.5 Days</text>
+                                            </g>
+                                            <path class="graph-edge" d="M190 399 L190 440" stroke="#999" stroke-width="2" marker-end="url(#ah-gray)"/>
+                                            
+                                            <!-- Rework loop -->
+                                            <path class="graph-edge" d="M105 377 Q70 377 70 310 L70 289 Q70 275 105 275" stroke="#cc4444" stroke-width="1.5" stroke-dasharray="4,3" fill="none" marker-end="url(#ah-rework)"/>
+                                            <text x="60" y="340" text-anchor="middle" font-size="9" fill="#cc4444">1</text>
+                                            
+                                            <!-- Node 11: Closed -->
+                                            <g class="graph-node" data-state="11">
+                                                <rect x="105" y="440" width="170" height="44" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/>
+                                                <text x="190" y="459" text-anchor="middle" font-size="12" font-weight="600">Closed</text>
+                                                <text x="190" y="475" text-anchor="middle" font-size="10" fill="var(--text-muted)" class="node-stats" data-base-count="87" data-base-days="5.2">87 | 5.2 Days</text>
+                                            </g>
+                                        </g>
+                                    </svg>
+                                </div>
+                            </div>
+
+                            <!-- Right: Variant Panel -->
+                            <div class="variant-panel self-start">
+                                <div class="variant-panel-header px-4 pt-3 text-[13px]">Case Variants</div>
+                                <div class="variant-panel-subtitle px-4 pb-2 text-[11px] text-gray-500">Filter by variant path</div>
+                                <div class="pb-2 border-t mt-1" id="right-variants">
+                                    <div class="variant-row selected" onclick="toggleVariant('right', 0)">
+                                        <span class="variant-num w-4 text-right text-[11px]">1</span>
+                                        <div class="variant-bar-track flex-1 h-3 bg-gray-100 rounded overflow-hidden">
+                                            <div class="variant-bar-fill h-full bg-[#1453b8]" style="width:92%"></div>
+                                        </div>
+                                        <span class="variant-days w-10 text-right text-[11px]">14.2d</span>
+                                    </div>
+                                    <div class="variant-row" onclick="toggleVariant('right', 1)">
+                                        <span class="variant-num w-4 text-right text-[11px]">2</span>
+                                        <div class="variant-bar-track flex-1 h-3 bg-gray-100 rounded overflow-hidden">
+                                            <div class="variant-bar-fill h-full bg-[#1453b8]" style="width:8%"></div>
+                                        </div>
+                                        <span class="variant-days w-10 text-right text-[11px]">22.1d</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const states = [
+            { label: '[Inbox] Received', days: 1.2 },
+            { label: '[Inbox] Triage', days: 2.8 },
+            { label: '[Inbox] In Review', days: 3.5 },
+            { label: '[Inbox] Approved', days: 1.1 },
+            { label: '[Inbox] Completed', days: 0.8 },
+            { label: 'HANDOFF', days: 0.2 },
+            { label: '[Case] Created', days: 0.5 },
+            { label: '[Case] Assessment', days: 3.2 },
+            { label: '[Case] Investigation', days: 4.8 },
+            { label: '[Case] Resolution', days: 2.1 },
+            { label: '[Case] Pending Approval', days: 1.5 },
+            { label: '[Case] Closed', days: 5.2 }
+        ];
+
+        function switchTab(tabId) {
+            document.querySelectorAll('#main-tabs .tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+            document.getElementById('admin-tab').classList.add('hidden');
+            document.getElementById('monitor-tab').classList.add('hidden');
+            document.getElementById(tabId).classList.remove('hidden');
+        }
+
+        function updateCycleTime() {
+            const startSelect = document.getElementById('ct-start');
+            const endSelect = document.getElementById('ct-end');
+            
+            startSelect.innerHTML = '';
+            endSelect.innerHTML = '';
+
+            states.forEach((state, i) => {
+                const optStart = new Option(state.label, i);
+                const optEnd = new Option(state.label, i);
+                startSelect.add(optStart);
+                endSelect.add(optEnd);
+            });
+
+            startSelect.selectedIndex = 0;
+            endSelect.selectedIndex = states.length - 1;
+            
+            updateMetrics();
+        }
+
+        function updateMetrics() {
+            const startIdx = parseInt(document.getElementById('ct-start').value);
+            const endIdx = parseInt(document.getElementById('ct-end').value);
+            
+            if (startIdx > endIdx) {
+                document.getElementById('avg-metric').textContent = '0.0';
+                document.getElementById('med-metric').textContent = '0.0';
+                highlightGraph(-1, -1);
+                return;
+            }
+
+            // Calculate total days in range
+            let totalDays = 0;
+            for (let i = startIdx; i <= endIdx; i++) {
+                totalDays += states[i].days;
+            }
+
+            document.getElementById('avg-metric').textContent = totalDays.toFixed(1);
+            document.getElementById('med-metric').textContent = (totalDays * 0.85).toFixed(1); // Simulating median
+
+            highlightGraph(startIdx, endIdx);
+        }
+
+        function highlightGraph(start, end) {
+            const nodes = document.querySelectorAll('.graph-node');
+            const edges = document.querySelectorAll('.graph-edge');
+
+            nodes.forEach(node => {
+                const idx = parseInt(node.getAttribute('data-state'));
+                
+                // Reset classes
+                node.classList.remove('ct-start-active', 'ct-end-active', 'fade-out');
+                
+                if (idx === start) {
+                    node.classList.add('ct-start-active');
+                } else if (idx === end) {
+                    node.classList.add('ct-end-active');
+                }
+            });
+
+            edges.forEach(edge => {
+                edge.classList.remove('fade-out');
+            });
+        }
+
+        function zoom(dir) {
+            let level = parseInt(document.getElementById('zoom-level').textContent);
+            level += dir * 5;
+            document.getElementById('zoom-level').textContent = level + '%';
+            document.getElementById('graph-container').style.transform = `scale(${level/100})`;
+            document.getElementById('graph-container').style.transformOrigin = 'top left';
+        }
+
+        function toggleVariant(side, index) {
+            const container = document.getElementById(side + '-variants');
+            container.querySelectorAll('.variant-row').forEach((r, i) => {
+                i === index ? r.classList.add('selected') : r.classList.remove('selected');
+            });
+            
+            const mainSvg = document.getElementById('main-svg');
+            if (side === 'left') {
+                mainSvg.querySelectorAll('.variant-2-only').forEach(el => {
+                    index === 1 ? el.classList.add('fade-out') : el.classList.remove('fade-out');
+                });
+            } else {
+                mainSvg.querySelectorAll('.variant-2-only-right').forEach(el => {
+                    index === 1 ? el.classList.add('fade-out') : el.classList.remove('fade-out');
+                });
+            }
+        }
+
+        function toggleResolution() {
+            const isMany = document.querySelector('input[name="join-type"][value="1:many"]').checked;
+            const resSettings = document.getElementById('resolution-settings');
+            if (isMany) {
+                resSettings.classList.remove('hidden');
+            } else {
+                resSettings.classList.add('hidden');
+            }
+        }
+
+        updateCycleTime();
+        toggleVariant('left', 0);
+        toggleVariant('right', 0);
+    </script>
+</body>
+</html>

@@ -26,7 +26,7 @@ Used to switch between high-level views (Overview, Process Graph, Records).
 - **Hover**: `text-[var(--text-main)]`.
 
 ### 2. Time Period Bar
-A sticky control bar for navigating time-based data buckets.
+A sticky control bar for navigating time-based data buckets. This only applies to the records section.
 - **Background**: `bg-[#f0f6ff] border-b`.
 - **Selector Button**: `border-[#b0c4de] bg-white font-semibold text-[13px] px-2.5 py-1 rounded`.
 - **Navigation Controls**: Small gray-bordered buttons for "Older" and "Newer".
