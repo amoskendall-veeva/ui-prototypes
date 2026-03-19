@@ -189,6 +189,44 @@ body { font-family: 'Inter', sans-serif; background: var(--page-bg); color: var(
 .tt-name { font-weight: 600; margin-bottom: 4px; }
 .tt-row { display: flex; justify-content: space-between; gap: 16px; color: #666; }
 .tt-val { font-weight: 600; color: var(--text-main); }
+
+/* State Hovercard */
+.state-hovercard {
+  position: fixed;
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0;
+  font-size: 12px;
+  pointer-events: none;
+  z-index: 100;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+  width: 200px;
+  display: none;
+  overflow: hidden;
+}
+.sh-header {
+  background: #f8faff;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-color);
+  font-weight: 700;
+  color: var(--veeva-blue);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.sh-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+.sh-metric-row { display: flex; justify-content: space-between; align-items: baseline; }
+.sh-label { color: #888; font-size: 10px; font-weight: 600; text-transform: uppercase; }
+.sh-value { font-weight: 700; color: #333; font-size: 13px; }
+.sh-value span { font-weight: 400; font-size: 10px; color: #aaa; margin-left: 2px; }
+.sh-footer {
+  padding: 8px 14px;
+  background: #fafafa;
+  border-top: 1px solid #f0f0f0;
+  font-size: 10px;
+  color: #999;
+}
 </style>
 </head>
 <body>
@@ -350,28 +388,40 @@ body { font-family: 'Inter', sans-serif; background: var(--page-bg); color: var(
               <text x="500" y="178" text-anchor="middle" font-size="9" fill="#cc4444" font-family="Inter,sans-serif">60 rework</text>
 
               <!-- Node 0: Draft -->
-              <g class="graph-node-g" data-state-id="0" data-state-name="Draft" onclick="selectNode(0)">
+              <g class="graph-node-g" data-state-id="0" data-state-name="Draft" 
+                 onclick="selectNode(0)" 
+                 onmouseenter="showStateCard(event, 0)" 
+                 onmouseleave="hideStateCard()">
                 <rect class="node-rect" x="30" y="58" width="165" height="60" rx="7" fill="white" stroke="#c8cdd6" stroke-width="1.5"/>
                 <text class="node-label" x="112" y="83" text-anchor="middle" font-size="12" font-weight="600" fill="#1d1d1d" font-family="Inter,sans-serif">Draft</text>
                 <text x="112" y="100" text-anchor="middle" font-size="10" fill="#808080" font-family="Inter,sans-serif">214 records · 4.1d avg</text>
               </g>
 
               <!-- Node 1: In Review -->
-              <g class="graph-node-g" data-state-id="1" data-state-name="In Review" onclick="selectNode(1)">
+              <g class="graph-node-g" data-state-id="1" data-state-name="In Review" 
+                 onclick="selectNode(1)" 
+                 onmouseenter="showStateCard(event, 1)" 
+                 onmouseleave="hideStateCard()">
                 <rect class="node-rect" x="267" y="58" width="165" height="60" rx="7" fill="white" stroke="#c8cdd6" stroke-width="1.5"/>
                 <text class="node-label" x="349" y="83" text-anchor="middle" font-size="12" font-weight="600" fill="#1d1d1d" font-family="Inter,sans-serif">In Review</text>
                 <text x="349" y="100" text-anchor="middle" font-size="10" fill="#808080" font-family="Inter,sans-serif">214 records · 12.6d avg</text>
               </g>
 
               <!-- Node 2: Pending HA Response -->
-              <g class="graph-node-g" data-state-id="2" data-state-name="Pending HA Response" onclick="selectNode(2)">
+              <g class="graph-node-g" data-state-id="2" data-state-name="Pending HA Response" 
+                 onclick="selectNode(2)" 
+                 onmouseenter="showStateCard(event, 2)" 
+                 onmouseleave="hideStateCard()">
                 <rect class="node-rect" x="504" y="58" width="165" height="60" rx="7" fill="white" stroke="#c8cdd6" stroke-width="1.5"/>
                 <text class="node-label" x="586" y="83" text-anchor="middle" font-size="12" font-weight="600" fill="#1d1d1d" font-family="Inter,sans-serif">Pending HA Response</text>
                 <text x="586" y="100" text-anchor="middle" font-size="10" fill="#808080" font-family="Inter,sans-serif">198 records · 8.4d avg</text>
               </g>
 
               <!-- Node 3: Approved -->
-              <g class="graph-node-g" data-state-id="3" data-state-name="Approved" onclick="selectNode(3)">
+              <g class="graph-node-g" data-state-id="3" data-state-name="Approved" 
+                 onclick="selectNode(3)" 
+                 onmouseenter="showStateCard(event, 3)" 
+                 onmouseleave="hideStateCard()">
                 <rect class="node-rect" x="741" y="58" width="109" height="60" rx="7" fill="white" stroke="#c8cdd6" stroke-width="1.5"/>
                 <text class="node-label" x="795" y="83" text-anchor="middle" font-size="12" font-weight="600" fill="#1d1d1d" font-family="Inter,sans-serif">Approved</text>
                 <text x="795" y="100" text-anchor="middle" font-size="10" fill="#808080" font-family="Inter,sans-serif">198 · 1.2d avg</text>
@@ -427,6 +477,7 @@ body { font-family: 'Inter', sans-serif; background: var(--page-bg); color: var(
 </div>
 
 <div class="swimlane-tooltip" id="tooltip"></div>
+<div class="state-hovercard" id="state-hovercard"></div>
 
 <script>
 // ─── Data ────────────────────────────────────────────────────────────────────
@@ -466,6 +517,9 @@ const STATE_TASKS = {
 const METRICS = {
   "0-3": { avg:"26.3", med:"22.0", p90:"41.5" },
   "0-0": { avg:"4.1",  med:"3.5",  p90:"7.2"  },
+  "1-1": { avg:"12.6", med:"10.4", p90:"18.2" },
+  "2-2": { avg:"8.4",  med:"7.1",  p90:"14.8" },
+  "3-3": { avg:"1.2",  med:"0.9",  p90:"2.1"  },
   "0-1": { avg:"16.7", med:"14.1", p90:"28.2" },
   "0-2": { avg:"25.1", med:"21.0", p90:"39.0" },
   "1-3": { avg:"22.2", med:"18.5", p90:"35.8" },
@@ -476,6 +530,33 @@ const METRICS = {
 // ─── State ───────────────────────────────────────────────────────────────────
 let selectedNode = null;
 let zoomLevel = 100;
+
+// ─── State Hovercard ─────────────────────────────────────────────────────────
+function showStateCard(e, id) {
+  const card = document.getElementById('state-hovercard');
+  const data = STATE_TASKS[id];
+  const m = METRICS[`${id}-${id}`];
+  const count = id < 2 ? 214 : 198;
+
+  card.style.display = 'block';
+  card.innerHTML = `
+    <div class="sh-header">STATE METRICS: ${data.name}</div>
+    <div class="sh-body">
+      <div class="sh-metric-row"><div class="sh-label">Volume</div><div class="sh-value">${count}<span>records</span></div></div>
+      <div class="sh-metric-row"><div class="sh-label">Avg Cycle Time</div><div class="sh-value">${m.avg}<span>days</span></div></div>
+      <div class="sh-metric-row"><div class="sh-label">Median</div><div class="sh-value">${m.med}<span>days</span></div></div>
+      <div class="sh-metric-row"><div class="sh-label">p90 (90th pct)</div><div class="sh-value">${m.p90}<span>days</span></div></div>
+    </div>
+    <div class="sh-footer">Process: Submission Review</div>
+  `;
+  moveStateCard(e);
+}
+function moveStateCard(e) {
+  const card = document.getElementById('state-hovercard');
+  card.style.left = (e.clientX + 16) + 'px';
+  card.style.top  = (e.clientY - 40) + 'px';
+}
+function hideStateCard() { document.getElementById('state-hovercard').style.display = 'none'; }
 
 // ─── Zoom ────────────────────────────────────────────────────────────────────
 function adjustZoom(delta) {
