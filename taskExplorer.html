@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Process Monitor — Task Drill-Down Prototype</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --veeva-blue: #1453b8;
+  --veeva-blue-hover: #0f4092;
+  --veeva-orange: #f8972b;
+  --vault-header-bg: #061937;
+  --text-main: #1d1d1d;
+  --text-muted: #808080;
+  --border-color: #e5e7eb;
+  --page-bg: #f4f5f7;
+  --panel-bg: #ffffff;
+  --node-bg: #ffffff;
+  --node-stroke: #c8cdd6;
+  --node-selected-stroke: #1453b8;
+  --node-dimmed-opacity: 0.3;
+  --task-assign-fill: #e1f5ee; --task-assign-stroke: #0f6e56; --task-assign-dark: #085041; --task-assign-light: #e1f5ee;
+  --task-review-fill: #f1eff8; --task-review-stroke: #5f5e5a; --task-review-dark: #2c2c2a; --task-review-light: #f1eff8;
+  --task-escalate-fill: #faeeda; --task-escalate-stroke: #854f0b; --task-escalate-dark: #412402; --task-escalate-light: #faeeda;
+  --task-reject-fill: #fcebeb; --task-reject-stroke: #a32d2d; --task-reject-dark: #501313; --task-reject-light: #fcebeb;
+  --task-revise-fill: #eeedfe; --task-revise-stroke: #534ab7; --task-revise-dark: #26215c; --task-revise-light: #eeedfe;
+  --task-approve-fill: #e1f5ee; --task-approve-stroke: #085041; --task-approve-dark: #04342c; --task-approve-light: #e1f5ee;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Inter', sans-serif; background: var(--page-bg); color: var(--text-main); height: 100vh; display: flex; flex-direction: column; overflow: hidden; font-size: 13px; }
+
+/* Header */
+.vault-header { height: 48px; background: var(--vault-header-bg); display: flex; align-items: center; justify-content: space-between; padding: 0 16px; flex-shrink: 0; }
+.vault-logo { display: flex; align-items: center; gap: 2px; }
+.vault-logo span:first-child { color: var(--veeva-orange); font-weight: 700; font-size: 18px; letter-spacing: -0.5px; }
+.vault-logo span:last-child { color: #fff; font-weight: 700; font-size: 18px; letter-spacing: -0.5px; }
+.vault-search { flex: 1; max-width: 440px; margin: 0 32px; display: flex; align-items: center; background: white; border-radius: 4px; height: 30px; overflow: hidden; }
+.vault-search input { flex: 1; border: none; outline: none; padding: 0 10px; font-size: 13px; }
+.vault-search-btn { width: 32px; height: 30px; background: #f5f5f5; border: none; border-left: 1px solid #e5e7eb; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #666; }
+.vault-avatar { width: 30px; height: 30px; border-radius: 50%; background: #4a5568; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px; font-weight: 600; }
+
+/* Sub-header */
+.sub-header { height: 40px; background: #f8f8f8; border-bottom: 1px solid var(--border-color); display: flex; align-items: flex-end; padding: 0 16px; flex-shrink: 0; }
+.tab-btn { font-size: 13px; color: var(--text-main); padding: 8px 16px; cursor: pointer; border-bottom: 3px solid transparent; white-space: nowrap; }
+.tab-btn.active { border-bottom-color: var(--veeva-orange); font-weight: 600; }
+.tab-btn:hover:not(.active) { background: #eee; }
+
+/* Layout */
+.app-body { flex: 1; display: flex; overflow: hidden; }
+.sidebar { width: 210px; background: var(--panel-bg); border-right: 1px solid var(--border-color); flex-shrink: 0; display: flex; flex-direction: column; }
+.sidebar-header { height: 40px; display: flex; align-items: center; padding: 0 16px; border-bottom: 1px solid var(--border-color); font-size: 11px; font-weight: 700; text-transform: uppercase; color: #666; letter-spacing: 0.5px; }
+.sidebar-body { padding: 16px 12px; display: flex; flex-direction: column; gap: 14px; }
+.field-group label { display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; color: #888; margin-bottom: 4px; letter-spacing: 0.4px; }
+.field-group select, .field-group input { width: 100%; border: 1px solid var(--border-color); border-radius: 4px; padding: 5px 8px; font-size: 12px; font-family: 'Inter', sans-serif; color: var(--text-main); background: white; outline: none; cursor: pointer; }
+.field-group select:focus { border-color: var(--veeva-blue); }
+
+/* Main content */
+.main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+/* Monitor top bar */
+.monitor-bar { background: white; border-bottom: 1px solid var(--border-color); padding: 10px 20px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+.monitor-title-block { display: flex; flex-direction: column; }
+.monitor-eyebrow { font-size: 10px; font-weight: 600; text-transform: uppercase; color: var(--veeva-blue); letter-spacing: 0.5px; }
+.monitor-title { font-size: 17px; font-weight: 400; color: var(--text-main); }
+.monitor-actions { display: flex; gap: 8px; }
+.btn { border-radius: 4px; font-size: 13px; font-weight: 500; padding: 5px 14px; cursor: pointer; border: 1px solid var(--border-color); background: white; color: var(--text-main); font-family: 'Inter', sans-serif; }
+.btn-primary { background: var(--veeva-blue); color: white; border-color: var(--veeva-blue); }
+.btn-primary:hover { background: var(--veeva-blue-hover); }
+
+/* Metrics */
+.metrics-row { padding: 12px 20px; background: #fafbfc; border-bottom: 1px solid var(--border-color); display: flex; gap: 10px; flex-shrink: 0; }
+.metric-card { border: 1px solid var(--border-color); border-radius: 4px; background: white; overflow: hidden; }
+.metric-card-header { background: #eef3fb; padding: 3px 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 1px solid var(--border-color); color: #444; }
+.metric-card-body { display: flex; }
+.metric-cell { padding: 5px 12px; border-right: 1px solid #f0f0f0; }
+.metric-cell:last-child { border-right: none; }
+.metric-label { font-size: 10px; color: var(--text-muted); margin-bottom: 1px; }
+.metric-value { font-size: 18px; font-weight: 700; color: var(--text-main); }
+
+/* Section tabs */
+.section-tabs { background: white; border-bottom: 1px solid var(--border-color); padding: 0 20px; display: flex; align-items: flex-end; flex-shrink: 0; }
+.section-tab { font-size: 13px; padding: 9px 14px; cursor: pointer; border-bottom: 2px solid transparent; color: #666; }
+.section-tab.active { color: var(--veeva-blue); border-bottom-color: var(--veeva-blue); font-weight: 600; }
+.section-tab:hover:not(.active) { color: var(--text-main); }
+
+/* Graph area */
+.graph-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.graph-toolbar { height: 36px; background: #f0f4fb; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; padding: 0 16px; gap: 8px; flex-shrink: 0; }
+.graph-toolbar-hint { font-size: 11px; color: #888; flex: 1; }
+.zoom-controls { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #666; }
+.zoom-btn { width: 22px; height: 22px; border: 1px solid var(--border-color); border-radius: 3px; background: white; cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center; color: #555; }
+.zoom-btn:hover { background: #f0f0f0; }
+
+/* Graph + task panel split */
+.graph-split { flex: 1; display: flex; flex-direction: row; overflow: hidden; position: relative; }
+.graph-scroll { flex: 1; overflow: auto; padding: 24px; }
+
+/* Variant Panel Sidebar (Right) */
+.variant-panel {
+    border-left: 1px solid var(--border-color);
+    background: white;
+    width: 240px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+}
+.variant-panel-header { padding: 12px 16px; border-bottom: 1px solid var(--border-color); font-size: 10px; font-weight: 700; text-transform: uppercase; color: #666; letter-spacing: 0.5px; }
+.variant-list-side { flex: 1; overflow: auto; padding: 4px 0; }
+.variant-row-side {
+    display: flex;
+    align-items: center;
+    padding: 8px 16px;
+    gap: 10px;
+    cursor: pointer;
+    border-right: 3px solid transparent;
+    transition: background 0.15s;
+}
+.variant-row-side:hover { background: #f8f9fa; }
+.variant-row-side.selected {
+    background: #eef4ff;
+    border-right-color: var(--veeva-blue);
+}
+.variant-num-side { font-size: 10px; color: #aaa; width: 14px; text-align: right; }
+.variant-bar-side-container { flex: 1; height: 12px; background: #f0f0f0; border-radius: 2px; overflow: hidden; position: relative; }
+.variant-bar-side-fill { height: 100%; background: var(--veeva-blue); border-radius: 2px; }
+.variant-value-side { font-size: 10px; color: #888; width: 32px; text-align: right; }
+
+/* SVG graph nodes */
+.graph-node-g { cursor: pointer; transition: opacity 0.2s; }
+.graph-node-g.dimmed { opacity: var(--node-dimmed-opacity); }
+.graph-node-g.selected rect.node-rect { stroke: var(--node-selected-stroke) !important; stroke-width: 2.5px !important; }
+.graph-node-g.selected .node-label { fill: var(--veeva-blue) !important; }
+.graph-edge { transition: opacity 0.2s; }
+.graph-edge.dimmed { opacity: 0.15; }
+
+/* Drawer scrim */
+.drawer-scrim { position: absolute; left: 0; top: 0; bottom: 0; right: 240px; background: rgba(0,0,0,0.18); z-index: 40; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
+.drawer-scrim.open { opacity: 1; pointer-events: all; }
+
+/* Full-width bottom drawer (Constrained to graph area) */
+.task-panel {
+  position: absolute; left: 0; right: 240px; bottom: 0;
+  height: 340px; min-height: 180px; max-height: 80vh;
+  background: white;
+  border-top: 2px solid var(--veeva-blue);
+  box-shadow: 0 -4px 24px rgba(0,0,0,0.13);
+  z-index: 50;
+  display: flex; flex-direction: column; overflow: hidden;
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.32,0.72,0,1);
+}
+.task-panel.open { transform: translateY(0); }
+
+/* Drag handle */
+.drawer-handle {
+  height: 20px; display: flex; align-items: center; justify-content: center;
+  cursor: ns-resize; flex-shrink: 0; background: white;
+  border-bottom: 1px solid var(--border-color);
+  user-select: none;
+}
+.drawer-handle-bar { width: 36px; height: 4px; background: #d0d4db; border-radius: 2px; }
+.drawer-handle:hover .drawer-handle-bar { background: #a0a8b8; }
+
+.task-panel-header { display: flex; align-items: center; padding: 8px 20px; border-bottom: 1px solid var(--border-color); gap: 12px; flex-shrink: 0; background: #fafbff; }
+.task-panel-title { font-size: 13px; font-weight: 600; color: var(--text-main); flex: 1; }
+.task-panel-state { font-size: 11px; font-weight: 600; color: var(--veeva-blue); background: #eef3fb; padding: 2px 8px; border-radius: 10px; }
+.task-panel-meta { font-size: 11px; color: #888; }
+.task-panel-close { width: 24px; height: 24px; border: 1px solid var(--border-color); border-radius: 4px; background: white; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; color: #888; }
+.task-panel-close:hover { background: #f0f0f0; color: var(--text-main); }
+.task-panel-body { flex: 1; overflow: auto; padding: 14px 20px; }
+
+/* Swimlane chart */
+.swimlane-chart { width: auto; margin-right: 35px; }
+.swimlane-axis-row { display: flex; align-items: center; margin-bottom: 6px; padding-left: 95px; }
+.swimlane-tick-labels { display: flex; flex: 1; justify-content: space-between; font-size: 9px; color: #aaa; }
+.swimlane-row { display: flex; align-items: center; margin-bottom: 5px; position: relative; }
+.swimlane-label { width: 85px; font-size: 10px; color: var(--text-main); text-align: right; padding-right: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }
+.swimlane-track { flex: 1; height: 30px; background: #f7f8fa; border-radius: 4px; position: relative; }
+.swimlane-gridline { position: absolute; top: 0; bottom: 0; width: 1px; background: #e8e8e8; pointer-events: none; }
+.swimlane-bar { position: absolute; top: 4px; height: 22px; border-radius: 5px; display: flex; align-items: center; cursor: pointer; transition: filter 0.15s; min-width: 8px; overflow: visible; }
+.swimlane-bar:hover { filter: brightness(0.92); }
+.swimlane-dur-label { font-size: 10px; font-weight: 600; white-space: nowrap; padding: 0 5px; }
+.swimlane-lag-label { position: absolute; left: 2px; font-size: 8px; opacity: 0.65; white-space: nowrap; }
+.swimlane-freq-label { position: absolute; right: -32px; font-size: 10px; color: #aaa; white-space: nowrap; }
+
+/* Tooltip */
+.swimlane-tooltip { position: fixed; background: white; border: 1px solid var(--border-color); border-radius: 6px; padding: 8px 12px; font-size: 11px; pointer-events: none; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.12); min-width: 160px; display: none; }
+.tt-name { font-weight: 600; margin-bottom: 4px; }
+.tt-row { display: flex; justify-content: space-between; gap: 16px; color: #666; }
+.tt-val { font-weight: 600; color: var(--text-main); }
+</style>
+</head>
+<body>
+
+<!-- Vault Header -->
+<header class="vault-header">
+  <div class="vault-logo"><span>Veeva</span><span>Vault</span></div>
+  <div class="vault-search">
+    <input type="text" placeholder="Search">
+    <button class="vault-search-btn">
+      <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+    </button>
+  </div>
+  <div class="vault-avatar">AK</div>
+</header>
+
+<!-- Sub header -->
+<div class="sub-header">
+  <div class="tab-btn">Admin</div>
+  <div class="tab-btn active">Process Monitor</div>
+</div>
+
+<div class="app-body">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">Configuration</div>
+    <div class="sidebar-body">
+      <div class="field-group">
+        <label>Process</label>
+        <select id="process-select">
+          <option>Submission Review</option>
+          <option>Change Control</option>
+          <option>CAPA</option>
+        </select>
+      </div>
+      <div class="field-group">
+        <label>Cycle Time Start</label>
+        <select id="ct-start" onchange="updateMetrics()">
+          <option value="0">Draft</option>
+          <option value="1">In Review</option>
+          <option value="2">Pending HA</option>
+          <option value="3">Approved</option>
+        </select>
+      </div>
+      <div class="field-group">
+        <label>Cycle Time End</label>
+        <select id="ct-end" onchange="updateMetrics()">
+          <option value="0">Draft</option>
+          <option value="1">In Review</option>
+          <option value="2">Pending HA</option>
+          <option value="3" selected>Approved</option>
+        </select>
+      </div>
+      <div class="field-group">
+        <label>Timeframe</label>
+        <select>
+          <option>Last 3 months</option>
+          <option>Last 6 months</option>
+          <option>Last 12 months</option>
+        </select>
+      </div>
+      <div class="field-group">
+        <label>Subprocess</label>
+        <select>
+          <option>All</option>
+          <option>Regulatory CMC</option>
+          <option>Regulatory Labeling</option>
+        </select>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main-content">
+    <div class="monitor-bar">
+      <div class="monitor-title-block">
+        <div class="monitor-eyebrow">Process Monitor</div>
+        <div class="monitor-title">Submission Review</div>
+      </div>
+      <div class="monitor-actions">
+        <button class="btn">Save</button>
+        <button class="btn btn-primary">Run</button>
+      </div>
+    </div>
+
+    <!-- Metrics -->
+    <div class="metrics-row">
+      <div class="metric-card">
+        <div class="metric-card-header">Cycle Time (Days)</div>
+        <div class="metric-card-body">
+          <div class="metric-cell"><div class="metric-label">Avg</div><div class="metric-value" id="avg-ct">26.3</div></div>
+          <div class="metric-cell"><div class="metric-label">Med</div><div class="metric-value" id="med-ct">22.0</div></div>
+          <div class="metric-cell"><div class="metric-label">p90</div><div class="metric-value" id="p90-ct">41.5</div></div>
+        </div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-card-header">Volume</div>
+        <div class="metric-card-body">
+          <div class="metric-cell"><div class="metric-label">Records</div><div class="metric-value">214</div></div>
+          <div class="metric-cell"><div class="metric-label">Completed</div><div class="metric-value">198</div></div>
+        </div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-card-header">Quality</div>
+        <div class="metric-card-body">
+          <div class="metric-cell"><div class="metric-label">1st Pass %</div><div class="metric-value">72%</div></div>
+          <div class="metric-cell"><div class="metric-label">Rework %</div><div class="metric-value">28%</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section tabs -->
+    <div class="section-tabs">
+      <div class="section-tab">Overview</div>
+      <div class="section-tab active">Process Graph</div>
+      <div class="section-tab">Records</div>
+    </div>
+
+    <!-- Graph area -->
+    <div class="graph-area">
+      <div class="graph-toolbar">
+        <span class="graph-toolbar-hint" id="toolbar-hint">Click a state node to view task breakdown</span>
+        <div class="zoom-controls">
+          <button class="zoom-btn" onclick="adjustZoom(-10)">−</button>
+          <span id="zoom-label" style="min-width:32px;text-align:center">100%</span>
+          <button class="zoom-btn" onclick="adjustZoom(10)">+</button>
+        </div>
+      </div>
+
+      <div class="graph-split">
+        <div class="graph-scroll" id="graph-scroll">
+          <div id="graph-wrapper" style="transform-origin: top left; transition: transform 0.2s;">
+            <svg id="main-svg" width="860" height="200" viewBox="0 0 860 200">
+              <defs>
+                <marker id="ah-gray" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                  <polygon points="0 0,8 3,0 6" fill="#b0b5be"/>
+                </marker>
+                <marker id="ah-blue" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                  <polygon points="0 0,8 3,0 6" fill="#1453b8"/>
+                </marker>
+                <marker id="ah-red" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                  <polygon points="0 0,8 3,0 6" fill="#cc4444"/>
+                </marker>
+              </defs>
+
+              <!-- Edges (drawn first so nodes sit on top) -->
+              <!-- Draft → In Review -->
+              <path class="graph-edge" id="e0-1" d="M195 88 L267 88" stroke="#b0b5be" stroke-width="2" fill="none" marker-end="url(#ah-gray)"/>
+              <!-- In Review → Pending HA -->
+              <path class="graph-edge" id="e1-2" d="M432 88 L504 88" stroke="#b0b5be" stroke-width="2" fill="none" marker-end="url(#ah-gray)"/>
+              <!-- Pending HA → Approved -->
+              <path class="graph-edge" id="e2-3" d="M669 88 L741 88" stroke="#b0b5be" stroke-width="2" fill="none" marker-end="url(#ah-gray)"/>
+              <!-- Rework: Pending HA → In Review (arc below) -->
+              <path class="graph-edge" id="e-rework" d="M586 128 Q586 162 432 162 Q300 162 300 128" stroke="#cc4444" stroke-width="1.5" stroke-dasharray="4,3" fill="none" marker-end="url(#ah-red)"/>
+              <!-- Edge labels -->
+              <text x="232" y="82" text-anchor="middle" font-size="9" fill="#b0b5be" font-family="Inter,sans-serif">214</text>
+              <text x="469" y="82" text-anchor="middle" font-size="9" fill="#b0b5be" font-family="Inter,sans-serif">214</text>
+              <text x="706" y="82" text-anchor="middle" font-size="9" fill="#b0b5be" font-family="Inter,sans-serif">198</text>
+              <text x="500" y="178" text-anchor="middle" font-size="9" fill="#cc4444" font-family="Inter,sans-serif">60 rework</text>
+
+              <!-- Node 0: Draft -->
+              <g class="graph-node-g" data-state-id="0" data-state-name="Draft" onclick="selectNode(0)">
+                <rect class="node-rect" x="30" y="58" width="165" height="60" rx="7" fill="white" stroke="#c8cdd6" stroke-width="1.5"/>
+                <text class="node-label" x="112" y="83" text-anchor="middle" font-size="12" font-weight="600" fill="#1d1d1d" font-family="Inter,sans-serif">Draft</text>
+                <text x="112" y="100" text-anchor="middle" font-size="10" fill="#808080" font-family="Inter,sans-serif">214 records · 4.1d avg</text>
+              </g>
+
+              <!-- Node 1: In Review -->
+              <g class="graph-node-g" data-state-id="1" data-state-name="In Review" onclick="selectNode(1)">
+                <rect class="node-rect" x="267" y="58" width="165" height="60" rx="7" fill="white" stroke="#c8cdd6" stroke-width="1.5"/>
+                <text class="node-label" x="349" y="83" text-anchor="middle" font-size="12" font-weight="600" fill="#1d1d1d" font-family="Inter,sans-serif">In Review</text>
+                <text x="349" y="100" text-anchor="middle" font-size="10" fill="#808080" font-family="Inter,sans-serif">214 records · 12.6d avg</text>
+              </g>
+
+              <!-- Node 2: Pending HA Response -->
+              <g class="graph-node-g" data-state-id="2" data-state-name="Pending HA Response" onclick="selectNode(2)">
+                <rect class="node-rect" x="504" y="58" width="165" height="60" rx="7" fill="white" stroke="#c8cdd6" stroke-width="1.5"/>
+                <text class="node-label" x="586" y="83" text-anchor="middle" font-size="12" font-weight="600" fill="#1d1d1d" font-family="Inter,sans-serif">Pending HA Response</text>
+                <text x="586" y="100" text-anchor="middle" font-size="10" fill="#808080" font-family="Inter,sans-serif">198 records · 8.4d avg</text>
+              </g>
+
+              <!-- Node 3: Approved -->
+              <g class="graph-node-g" data-state-id="3" data-state-name="Approved" onclick="selectNode(3)">
+                <rect class="node-rect" x="741" y="58" width="109" height="60" rx="7" fill="white" stroke="#c8cdd6" stroke-width="1.5"/>
+                <text class="node-label" x="795" y="83" text-anchor="middle" font-size="12" font-weight="600" fill="#1d1d1d" font-family="Inter,sans-serif">Approved</text>
+                <text x="795" y="100" text-anchor="middle" font-size="10" fill="#808080" font-family="Inter,sans-serif">198 · 1.2d avg</text>
+              </g>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Variant Panel Sidebar (Right) -->
+        <div class="variant-panel">
+          <div class="variant-panel-header">Process Variants</div>
+          <div class="variant-list-side">
+            <div class="variant-row-side selected">
+              <span class="variant-num-side">1</span>
+              <div class="variant-bar-side-container"><div class="variant-bar-side-fill" style="width: 42%"></div></div>
+              <span class="variant-value-side">42%</span>
+            </div>
+            <div class="variant-row-side">
+              <span class="variant-num-side">2</span>
+              <div class="variant-bar-side-container"><div class="variant-bar-side-fill" style="width: 15%"></div></div>
+              <span class="variant-value-side">15%</span>
+            </div>
+            <div class="variant-row-side">
+              <span class="variant-num-side">3</span>
+              <div class="variant-bar-side-container"><div class="variant-bar-side-fill" style="width: 22%"></div></div>
+              <span class="variant-value-side">22%</span>
+            </div>
+            <div class="variant-row-side">
+              <span class="variant-num-side">4</span>
+              <div class="variant-bar-side-container"><div class="variant-bar-side-fill" style="width: 6%"></div></div>
+              <span class="variant-value-side">6%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Task drill-down drawer -->
+        <div class="drawer-scrim" id="drawer-scrim" onclick="closePanel()"></div>
+        <div class="task-panel" id="task-panel">
+          <div class="drawer-handle" id="drawer-handle">
+            <div class="drawer-handle-bar"></div>
+          </div>
+          <div class="task-panel-header">
+            <div class="task-panel-title">Task breakdown</div>
+            <div class="task-panel-state" id="panel-state-label"></div>
+            <div class="task-panel-meta" id="panel-state-meta"></div>
+            <button class="task-panel-close" onclick="closePanel()">✕</button>
+          </div>
+          <div class="task-panel-body" id="task-panel-body"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="swimlane-tooltip" id="tooltip"></div>
+
+<script>
+// ─── Data ────────────────────────────────────────────────────────────────────
+const STATE_TASKS = {
+  0: { // Draft
+    name: "Draft",
+    swimlane: [
+      { name:"Initial Assign", type:"assign", lag:0,   dur:0.3, freq:0.85 },
+      { name:"Author",         type:"review", lag:0.3, dur:3.5, freq:0.92 },
+      { name:"Peer Review",    type:"review", lag:2.5, dur:1.2, freq:0.45 },
+    ]
+  },
+  1: { // In Review
+    name: "In Review",
+    swimlane: [
+      { name:"Initial Assign", type:"assign",  lag:0,   dur:0.5, freq:0.75 },
+      { name:"Review",         type:"review",  lag:0.5, dur:7.0, freq:0.88 },
+      { name:"Approve",        type:"approve", lag:7.5, dur:1.5, freq:0.54 },
+    ]
+  },
+  2: { // Pending HA Response
+    name: "Pending HA Response",
+    swimlane: [
+      { name:"Receive",         type:"assign",  lag:0,   dur:0.5, freq:0.90 },
+      { name:"Draft Response",  type:"review",  lag:1,   dur:4.5, freq:0.62 },
+      { name:"Submit Answer",   type:"approve", lag:5.5, dur:0.8, freq:0.85 },
+    ]
+  },
+  3: { // Approved
+    name: "Approved",
+    swimlane: [
+      { name:"Sign-off",        type:"approve", lag:0,   dur:0.5, freq:0.35 },
+    ]
+  }
+};
+
+const METRICS = {
+  "0-3": { avg:"26.3", med:"22.0", p90:"41.5" },
+  "0-0": { avg:"4.1",  med:"3.5",  p90:"7.2"  },
+  "0-1": { avg:"16.7", med:"14.1", p90:"28.2" },
+  "0-2": { avg:"25.1", med:"21.0", p90:"39.0" },
+  "1-3": { avg:"22.2", med:"18.5", p90:"35.8" },
+  "1-2": { avg:"21.0", med:"17.2", p90:"33.1" },
+  "2-3": { avg:"9.6",  med:"8.2",  p90:"16.4" },
+};
+
+// ─── State ───────────────────────────────────────────────────────────────────
+let selectedNode = null;
+let zoomLevel = 100;
+
+// ─── Zoom ────────────────────────────────────────────────────────────────────
+function adjustZoom(delta) {
+  zoomLevel = Math.min(150, Math.max(60, zoomLevel + delta));
+  document.getElementById('zoom-label').textContent = zoomLevel + '%';
+  document.getElementById('graph-wrapper').style.transform = `scale(${zoomLevel/100})`;
+}
+
+// ─── Metrics ─────────────────────────────────────────────────────────────────
+function updateMetrics() {
+  const s = document.getElementById('ct-start').value;
+  const e = document.getElementById('ct-end').value;
+  const key = s + '-' + e;
+  const m = METRICS[key] || { avg:'—', med:'—', p90:'—' };
+  document.getElementById('avg-ct').textContent = m.avg;
+  document.getElementById('med-ct').textContent = m.med;
+  document.getElementById('p90-ct').textContent = m.p90;
+  highlightCycleTimeNodes(parseInt(s), parseInt(e));
+}
+
+function highlightCycleTimeNodes(start, end) {
+  document.querySelectorAll('.graph-node-g').forEach(n => {
+    const id = parseInt(n.dataset.stateId);
+    const rect = n.querySelector('.node-rect');
+    const label = n.querySelector('.node-label');
+    rect.style.stroke = '#c8cdd6';
+    rect.style.strokeWidth = '1.5px';
+    label.style.fill = '#1d1d1d';
+    if (id === start) { rect.style.stroke = '#22a05a'; rect.style.strokeWidth = '2.5px'; label.style.fill = '#22a05a'; }
+    if (id === end && end !== start) { rect.style.stroke = '#cc4444'; rect.style.strokeWidth = '2.5px'; label.style.fill = '#cc4444'; }
+    if (selectedNode === id) { rect.style.stroke = '#1453b8'; rect.style.strokeWidth = '2.5px'; label.style.fill = '#1453b8'; }
+  });
+}
+
+// ─── Node selection ──────────────────────────────────────────────────────────
+function selectNode(id) {
+  selectedNode = id;
+  const data = STATE_TASKS[id];
+
+  // Update graph visuals
+  document.querySelectorAll('.graph-node-g').forEach(n => {
+    const nid = parseInt(n.dataset.stateId);
+    n.classList.toggle('dimmed', nid !== id);
+    const rect = n.querySelector('.node-rect');
+    const lbl = n.querySelector('.node-label');
+    if (nid === id) {
+      rect.style.stroke = '#1453b8';
+      rect.style.strokeWidth = '2.5px';
+      lbl.style.fill = '#1453b8';
+    } else {
+      rect.style.stroke = '#c8cdd6';
+      rect.style.strokeWidth = '1.5px';
+      lbl.style.fill = '#1d1d1d';
+    }
+  });
+  document.querySelectorAll('.graph-edge').forEach(e => e.classList.add('dimmed'));
+
+  // Populate header
+  document.getElementById('panel-state-label').textContent = data.name;
+  const totalCases = data.swimlane[0] ? Math.round(data.swimlane[0].freq * 214) : 0;
+  const avgDur = data.swimlane.reduce((s,t) => s + (t.dur * t.freq), 0).toFixed(1);
+  document.getElementById('panel-state-meta').textContent = `214 records · ${avgDur}d weighted avg task time`;
+  document.getElementById('toolbar-hint').textContent = `Showing tasks for: ${data.name} — drag handle to resize`;
+
+  // Open drawer + scrim
+  document.getElementById('task-panel').classList.add('open');
+  document.getElementById('drawer-scrim').classList.add('open');
+
+  renderPanel();
+}
+
+function closePanel() {
+  document.getElementById('task-panel').classList.remove('open');
+  document.getElementById('drawer-scrim').classList.remove('open');
+  document.getElementById('toolbar-hint').textContent = 'Click a state node to view task breakdown';
+  document.querySelectorAll('.graph-node-g').forEach(n => {
+    n.classList.remove('dimmed');
+    n.querySelector('.node-rect').style.stroke = '#c8cdd6';
+    n.querySelector('.node-rect').style.strokeWidth = '1.5px';
+    n.querySelector('.node-label').style.fill = '#1d1d1d';
+  });
+  document.querySelectorAll('.graph-edge').forEach(e => e.classList.remove('dimmed'));
+  selectedNode = null;
+  updateMetrics();
+}
+
+function renderPanel() {
+  if (selectedNode === null) return;
+  const body = document.getElementById('task-panel-body');
+  renderSwimlane(body);
+}
+
+// ─── Swimlane renderer ───────────────────────────────────────────────────────
+function renderSwimlane(container) {
+  const tasks = [...STATE_TASKS[selectedNode].swimlane].sort((a,b) => a.lag - b.lag);
+  const maxTime = Math.max(...tasks.map(t => t.lag + t.dur)) * 1.08;
+  const TICK_COUNT = 5;
+
+  let html = `<div class="swimlane-chart">`;
+
+  // Axis row
+  html += `<div class="swimlane-axis-row"><div class="swimlane-tick-labels">`;
+  for (let i = 0; i <= TICK_COUNT; i++) {
+    const v = (maxTime * i / TICK_COUNT);
+    html += `<span>${v < 1 ? v.toFixed(1) : Math.round(v)}d</span>`;
+  }
+  html += `</div></div>`;
+
+  tasks.forEach(task => {
+    const leftPct = (task.lag / maxTime) * 100;
+    const widthPct = Math.max(1.5, (task.dur / maxTime) * 100);
+    const opacityVal = 0.18 + task.freq * 0.82;
+
+    // Colorscale based on frequency
+    const fillColor = interpColor("#eef3fb", "#1453b8", task.freq);
+    const borderColor = interpColor("#c8cdd6", "#0f4092", task.freq);
+    const textColor = task.freq > 0.55 ? "#ffffff" : "#1d1d1d";
+    const inside = widthPct > 12;
+
+    html += `<div class="swimlane-row">
+      <div class="swimlane-label">${task.name}</div>
+      <div class="swimlane-track" id="track-${task.name.replace(/\s/g,'_')}">`;
+
+    // Gridlines
+    for (let i = 1; i < TICK_COUNT; i++) {
+      html += `<div class="swimlane-gridline" style="left:${(i/TICK_COUNT)*100}%"></div>`;
+    }
+
+    html += `<div class="swimlane-bar"
+        style="left:${leftPct}%;width:${widthPct}%;background:${fillColor};border:1px solid ${borderColor};opacity:${opacityVal}"
+        onmouseenter="showTip(event,'${task.name}',${task.dur},${task.lag},${task.freq},'${task.type}')"
+        onmouseleave="hideTip()">`;
+
+    if (inside) {
+      html += `<span class="swimlane-lag-label" style="color:${textColor}">+${task.lag}d</span>
+               <span class="swimlane-dur-label" style="color:${textColor};margin-left:auto">${task.dur}d</span>`;
+    } else {
+      html += `<span class="swimlane-dur-label" style="color:#1d1d1d;position:absolute;left:calc(100% + 4px);font-size:9px">${task.dur}d</span>`;
+    }
+
+    html += `</div>`;
+    html += `<span class="swimlane-freq-label">${Math.round(task.freq*100)}%</span>`;
+    html += `</div></div>`;
+  });
+
+  html += `</div>`;
+  container.innerHTML = html;
+}
+
+
+// ─── Tooltip ─────────────────────────────────────────────────────────────────
+function showTip(e, name, dur, lag, freq, type) {
+  const tt = document.getElementById('tooltip');
+  tt.style.display = 'block';
+  tt.innerHTML = `
+    <div class="tt-name">${name}</div>
+    <div class="tt-row"><span>Avg duration</span><span class="tt-val">${dur}d</span></div>
+    <div class="tt-row"><span>Avg lag</span><span class="tt-val">${lag}d</span></div>
+    <div class="tt-row"><span>Frequency</span><span class="tt-val">${Math.round(freq*100)}%</span></div>
+    <div class="tt-row"><span>Type</span><span class="tt-val">${type}</span></div>`;
+  moveTip(e);
+}
+function moveTip(e) {
+  const tt = document.getElementById('tooltip');
+  tt.style.left = (e.clientX + 14) + 'px';
+  tt.style.top  = (e.clientY - 10) + 'px';
+}
+function hideTip() { document.getElementById('tooltip').style.display = 'none'; }
+document.addEventListener('mousemove', e => {
+  if (document.getElementById('tooltip').style.display === 'block') moveTip(e);
+});
+
+// ─── Color helpers ───────────────────────────────────────────────────────────
+function hexToRgb(h) {
+  const r = parseInt(h.slice(1,3),16), g = parseInt(h.slice(3,5),16), b = parseInt(h.slice(5,7),16);
+  return [r,g,b];
+}
+function interpColor(lo, hi, t) {
+  try {
+    const a = hexToRgb(lo), b = hexToRgb(hi);
+    return `rgb(${Math.round(a[0]+(b[0]-a[0])*t)},${Math.round(a[1]+(b[1]-a[1])*t)},${Math.round(a[2]+(b[2]-a[2])*t)})`;
+  } catch(e) { return lo; }
+}
+
+// ─── Drag to resize drawer ────────────────────────────────────────────────────
+(function() {
+  const handle = document.getElementById('drawer-handle');
+  const panel  = document.getElementById('task-panel');
+  let dragging = false, startY = 0, startH = 0;
+
+  handle.addEventListener('mousedown', e => {
+    dragging = true;
+    startY = e.clientY;
+    startH = panel.offsetHeight;
+    document.body.style.cursor = 'ns-resize';
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    const delta = startY - e.clientY;           // dragging up = positive = taller
+    const newH  = Math.min(Math.max(startH + delta, 180), window.innerHeight * 0.8);
+    panel.style.height = newH + 'px';
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  });
+})();
+
+// ─── Init ────────────────────────────────────────────────────────────────────
+updateMetrics();
+</script>
+</body>
+</html>
