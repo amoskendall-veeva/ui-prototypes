@@ -215,6 +215,110 @@
         .zoom-btn:hover {
             background: #f8f8f8;
         }
+
+        /* Drawer Styles (Drill-Down View) */
+        .drawer-scrim {
+            position: absolute;
+            left: 0; top: 0; bottom: 0; right: 0;
+            background: rgba(0,0,0,0.18);
+            z-index: 40;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        .drawer-scrim.open { opacity: 1; pointer-events: all; }
+
+        .drill-drawer {
+            position: absolute;
+            left: 0; right: 0; bottom: 0;
+            height: 340px;
+            min-height: 180px;
+            max-height: 80vh;
+            background: white;
+            border-top: 2px solid var(--veeva-blue);
+            box-shadow: 0 -4px 24px rgba(0,0,0,0.13);
+            z-index: 50;
+            display: flex; flex-direction: column;
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.32,0.72,0,1);
+        }
+        .drill-drawer.open { transform: translateY(0); }
+
+        .drawer-handle {
+            height: 20px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: ns-resize;
+            background: white;
+            border-bottom: 1px solid var(--border-color);
+            user-select: none;
+        }
+        .drawer-handle-bar {
+            width: 36px; height: 4px;
+            background: #d0d4db;
+            border-radius: 2px;
+        }
+        .drawer-handle:hover .drawer-handle-bar { background: #a0a8b8; }
+
+        .drawer-header {
+            display: flex; align-items: center;
+            padding: 8px 20px;
+            border-bottom: 1px solid var(--border-color);
+            gap: 12px;
+            flex-shrink: 0;
+            background: #fafbff;
+        }
+        .drawer-title { font-size: 13px; font-weight: 600; flex: 1; }
+        .drawer-badge {
+            font-size: 11px; font-weight: 600;
+            color: var(--veeva-blue);
+            background: #eef3fb;
+            padding: 2px 8px; border-radius: 10px;
+        }
+        .drawer-meta { font-size: 11px; color: #888; }
+        .drawer-close {
+            width: 24px; height: 24px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background: white;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; color: #666;
+        }
+        .drawer-close:hover { background: #f5f5f5; }
+        .drawer-body {
+            flex: 1;
+            overflow: auto;
+            padding: 14px 20px;
+        }
+
+        /* Drill-down graph node interactivity */
+        .dd-node { cursor: pointer; }
+        .dd-node:hover rect { stroke: var(--veeva-blue) !important; stroke-width: 2px !important; }
+        .dd-node.selected rect { fill: #eef3fb !important; stroke: var(--veeva-blue) !important; stroke-width: 2.5px !important; }
+        .dd-node.dimmed { opacity: 0.3; }
+        .dd-edge.dimmed { opacity: 0.3; }
+        .dd-node.crossing-point rect { stroke: var(--veeva-orange) !important; }
+        .dd-node.crossing-point text.cp-label { fill: var(--veeva-orange); }
+
+        /* Flattened graph crossing-point marker */
+        .flat-crossing-marker {
+            stroke: var(--veeva-orange);
+            stroke-width: 2;
+            stroke-dasharray: 6,3;
+        }
+
+        /* Flattened view process color coding */
+        .flat-process-inbox rect { fill: #eef3fb; stroke: #7ba4de; }
+        .flat-process-inbox text.node-name { fill: #1453b8; }
+        .flat-process-case rect { fill: #e8f5e9; stroke: #81c784; }
+        .flat-process-case text.node-name { fill: #2e7d32; }
+        .flat-process-crossing rect { fill: var(--node-join-bg); stroke: var(--node-join-stroke); }
+        .flat-process-crossing text.node-name { fill: #b06c00; }
+        /* Reuse inbox/case colors for dev/capa (same blue/green scheme) */
+        .flat-process-dev rect { fill: #eef3fb; stroke: #7ba4de; }
+        .flat-process-dev text.node-name { fill: #1453b8; }
+        .flat-process-capa rect { fill: #e8f5e9; stroke: #81c784; }
+        .flat-process-capa text.node-name { fill: #2e7d32; }
     </style>
 </head>
 <body class="flex flex-col h-screen">
@@ -244,7 +348,9 @@
         <div class="h-[40px] bg-[#f8f8f8] flex items-end justify-between px-4 border-b border-[#e5e7eb]">
             <div class="flex h-full items-end" id="main-tabs">
                 <div class="tab-btn active h-full flex items-center" onclick="switchTab('admin-tab')">Admin</div>
-                <div class="tab-btn h-full flex items-center" onclick="switchTab('monitor-tab')">Process Monitor</div>
+                <div class="tab-btn h-full flex items-center" onclick="switchTab('monitor-tab')">Crossing Point View</div>
+                <div class="tab-btn h-full flex items-center" onclick="switchTab('flat-tab')">Flattened View</div>
+                <div class="tab-btn h-full flex items-center" onclick="switchTab('drilldown-tab')">Drill-Down View</div>
             </div>
             <div class="mb-1">
                 <button class="btn-primary">Save Configuration</button>
@@ -312,7 +418,7 @@
                             </select>
                         </div>
                         <div class="flex flex-col gap-2">
-                            <label class="text-[12px] font-bold text-gray-700 uppercase">State Join Criteria</label>
+                            <label class="text-[12px] font-bold text-gray-700 uppercase">Crossing Point</label>
                             <div class="flex items-center gap-4">
                                 <select class="border border-gray-300 rounded px-3 py-2 text-[13px] w-[300px]"><option>Inbox Item - Completed</option></select>
                                 <div class="text-gray-400 font-bold">+</div>
@@ -330,7 +436,7 @@
             <div class="bg-white border-b flex-shrink-0">
                 <div class="flex items-center justify-between px-4 py-2">
                     <div class="flex flex-col">
-                        <div class="text-[11px] text-[var(--veeva-blue)] uppercase font-semibold">Process Monitor</div>
+                        <div class="text-[11px] text-[var(--veeva-blue)] uppercase font-semibold">Crossing Point View</div>
                         <h2 class="text-[18px] font-normal text-[var(--text-main)]" id="monitor-title">Inbox Item → Case Process</h2>
                     </div>
                     <div class="flex items-center gap-2">
@@ -346,9 +452,9 @@
                     <div class="px-4 flex flex-col gap-5">
                         <div class="flex flex-col gap-1">
                             <label class="text-[11px] font-bold text-gray-700 uppercase">Process</label>
-                            <select id="process-select" class="border border-gray-300 rounded px-2 py-1.5 text-[13px]" onchange="updateCycleTime()">
-                                <option value="inbox-case">inbox item -> case</option>
-                                <option value="events-activities">Events with Activities</option>
+                            <select id="process-select" class="border border-gray-300 rounded px-2 py-1.5 text-[13px]" onchange="switchProcess(this.value)">
+                                <option value="inbox-case">Inbox Item → Case</option>
+                                <option value="dev-capa">Deviations with CAPA</option>
                             </select>
                         </div>
                         <div class="flex flex-col gap-1">
@@ -615,95 +721,673 @@
                 </div>
             </div>
         </div>
+        <!-- Flattened View Tab -->
+        <div id="flat-tab" class="flex-1 flex flex-col hidden w-full overflow-hidden">
+            <div class="bg-white border-b flex-shrink-0">
+                <div class="flex items-center justify-between px-4 py-2">
+                    <div class="flex flex-col">
+                        <div class="text-[11px] text-[var(--veeva-blue)] uppercase font-semibold">Flattened View</div>
+                        <h2 class="text-[18px] font-normal text-[var(--text-main)]">End-to-End Process: Inbox Item → Case</h2>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button class="border border-gray-300 bg-white text-[13px] px-3 py-1 rounded cursor-pointer">Save</button>
+                        <button class="btn-primary text-[13px] px-4 py-1">Run</button>
+                    </div>
+                </div>
+            </div>
+            <div class="flex-1 flex overflow-hidden">
+                <div class="w-[220px] bg-[#f8f8f8] border-r border-[#eee] flex flex-col overflow-y-auto flex-shrink-0 pt-4">
+                    <div class="px-4 flex flex-col gap-5">
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[11px] font-bold text-gray-700 uppercase">Process</label>
+                            <select id="flat-process-select" class="border border-gray-300 rounded px-2 py-1.5 text-[13px]" onchange="switchProcess(this.value)">
+                                <option value="inbox-case">Inbox Item → Case</option>
+                                <option value="dev-capa">Deviations with CAPA</option>
+                            </select>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[11px] font-bold text-gray-700 uppercase">Cycle Time Start</label>
+                            <select id="flat-ct-start" class="border border-gray-300 rounded px-2 py-1.5 text-[13px]" onchange="updateFlatMetrics()">
+                            </select>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[11px] font-bold text-gray-700 uppercase">Cycle Time End</label>
+                            <select id="flat-ct-end" class="border border-gray-300 rounded px-2 py-1.5 text-[13px]" onchange="updateFlatMetrics()">
+                            </select>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[11px] font-bold text-gray-700 uppercase">Timeframe</label>
+                            <select class="border border-gray-300 rounded px-2 py-1.5 text-[13px]"><option>Last 3 months</option></select>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex-1 flex flex-col bg-[#fafafa] overflow-hidden pt-4">
+                    <div class="px-6 flex-shrink-0">
+                        <div class="metrics-bar">
+                            <div class="metrics-group">
+                                <div class="metrics-group-header">Cycle Time (Days)</div>
+                                <div class="metrics-group-body">
+                                    <div class="metric-cell"><div class="metric-label">Avg</div><div class="metric-value" id="flat-avg-metric">26.8</div></div>
+                                    <div class="metric-cell"><div class="metric-label">Med</div><div class="metric-value" id="flat-med-metric">22.8</div></div>
+                                </div>
+                            </div>
+                            <div class="metrics-group">
+                                <div class="metrics-group-header">Volume</div>
+                                <div class="metrics-group-body">
+                                    <div class="metric-cell"><div class="metric-label">Start</div><div class="metric-value">87</div></div>
+                                    <div class="metric-cell"><div class="metric-label">End</div><div class="metric-value">87</div></div>
+                                </div>
+                            </div>
+                            <div class="metrics-group">
+                                <div class="metrics-group-header">Variants</div>
+                                <div class="metrics-group-body">
+                                    <div class="metric-cell"><div class="metric-label">Count</div><div class="metric-value">4</div></div>
+                                    <div class="metric-cell"><div class="metric-label">Dominant</div><div class="metric-value">V1</div></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="px-6 mt-4 border-b border-[var(--border-color)] bg-white flex-shrink-0">
+                        <div class="flex">
+                            <div class="section-tab">Overview</div>
+                            <div class="section-tab active">Process Graph</div>
+                            <div class="section-tab">Records</div>
+                        </div>
+                    </div>
+                    <div class="h-[36px] bg-[var(--tp-bar-bg)] border-b border-[var(--border-color)] flex items-center px-6 flex-shrink-0">
+                    </div>
+                    <div class="flex-1 p-6 overflow-auto" id="flat-graph-outer">
+                      <div class="flex items-start gap-4">
+                        <!-- Left Variant Panel -->
+                        <div class="variant-panel self-start">
+                            <div class="variant-panel-header px-4 pt-3 text-[13px]">End-to-End Variants</div>
+                            <div class="variant-panel-subtitle px-4 pb-2 text-[11px] text-gray-500">Filter by variant path</div>
+                            <div class="pb-2 border-t mt-1" id="flat-variants">
+                                <div class="variant-row selected" onclick="toggleFlatVariantRow(0)">
+                                    <span class="variant-num w-4 text-right text-[11px]">1</span>
+                                    <div class="variant-bar-track flex-1 h-3 bg-gray-100 rounded overflow-hidden">
+                                        <div class="variant-bar-fill h-full bg-[#1453b8]" style="width:70%"></div>
+                                    </div>
+                                    <span class="variant-days w-10 text-right text-[11px]">19.4d</span>
+                                </div>
+                                <div class="variant-row" onclick="toggleFlatVariantRow(1)">
+                                    <span class="variant-num w-4 text-right text-[11px]">2</span>
+                                    <div class="variant-bar-track flex-1 h-3 bg-gray-100 rounded overflow-hidden">
+                                        <div class="variant-bar-fill h-full bg-[#1453b8]" style="width:15%"></div>
+                                    </div>
+                                    <span class="variant-days w-10 text-right text-[11px]">23.5d</span>
+                                </div>
+                                <div class="variant-row" onclick="toggleFlatVariantRow(2)">
+                                    <span class="variant-num w-4 text-right text-[11px]">3</span>
+                                    <div class="variant-bar-track flex-1 h-3 bg-gray-100 rounded overflow-hidden">
+                                        <div class="variant-bar-fill h-full bg-[#1453b8]" style="width:10%"></div>
+                                    </div>
+                                    <span class="variant-days w-10 text-right text-[11px]">20.7d</span>
+                                </div>
+                                <div class="variant-row" onclick="toggleFlatVariantRow(3)">
+                                    <span class="variant-num w-4 text-right text-[11px]">4</span>
+                                    <div class="variant-bar-track flex-1 h-3 bg-gray-100 rounded overflow-hidden">
+                                        <div class="variant-bar-fill h-full bg-[#1453b8]" style="width:5%"></div>
+                                    </div>
+                                    <span class="variant-days w-10 text-right text-[11px]">24.8d</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="self-start flex-shrink-0 border border-[var(--border-color)] rounded bg-white" id="flat-graph-container">
+                        <!-- Rendered dynamically by renderFlatSvg() -->
+                    </div>
+                      </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Drill-Down View Tab -->
+        <div id="drilldown-tab" class="flex-1 flex flex-col hidden w-full overflow-hidden">
+            <div class="bg-white border-b flex-shrink-0">
+                <div class="flex items-center justify-between px-4 py-2">
+                    <div class="flex flex-col">
+                        <div class="text-[11px] text-[var(--veeva-blue)] uppercase font-semibold">Drill-Down View</div>
+                        <h2 class="text-[18px] font-normal text-[var(--text-main)]">Inbox Item Process (Parent)</h2>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button class="border border-gray-300 bg-white text-[13px] px-3 py-1 rounded cursor-pointer">Save</button>
+                        <button class="btn-primary text-[13px] px-4 py-1">Run</button>
+                    </div>
+                </div>
+            </div>
+            <div class="flex-1 flex overflow-hidden">
+                <div class="w-[220px] bg-[#f8f8f8] border-r border-[#eee] flex flex-col overflow-y-auto flex-shrink-0 pt-4">
+                    <div class="px-4 flex flex-col gap-5">
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[11px] font-bold text-gray-700 uppercase">Process</label>
+                            <select id="dd-process-select" class="border border-gray-300 rounded px-2 py-1.5 text-[13px]" onchange="switchProcess(this.value)">
+                                <option value="inbox-case">Inbox Item → Case</option>
+                                <option value="dev-capa">Deviations with CAPA</option>
+                            </select>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[11px] font-bold text-gray-700 uppercase">Timeframe</label>
+                            <select class="border border-gray-300 rounded px-2 py-1.5 text-[13px]"><option>Last 3 months</option></select>
+                        </div>
+                        <div class="border-t border-[#eee] pt-4 mt-1" id="dd-cp-info">
+                            <div class="text-[10px] uppercase font-bold text-gray-500 mb-2">Crossing Points</div>
+                            <div id="dd-cp-cards"></div>
+                            <div class="text-[10px] text-gray-400 mt-2" id="dd-cp-hint">Click a crossing point state to drill into the child process.</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex-1 flex flex-col bg-[#fafafa] overflow-hidden pt-4 relative">
+                    <div class="px-6 flex-shrink-0">
+                        <div class="metrics-bar">
+                            <div class="metrics-group">
+                                <div class="metrics-group-header">Cycle Time (Days)</div>
+                                <div class="metrics-group-body">
+                                    <div class="metric-cell"><div class="metric-label">Avg</div><div class="metric-value">9.4</div></div>
+                                    <div class="metric-cell"><div class="metric-label">Med</div><div class="metric-value">8.0</div></div>
+                                </div>
+                            </div>
+                            <div class="metrics-group">
+                                <div class="metrics-group-header">Volume</div>
+                                <div class="metrics-group-body">
+                                    <div class="metric-cell"><div class="metric-label">Start</div><div class="metric-value">87</div></div>
+                                    <div class="metric-cell"><div class="metric-label">End</div><div class="metric-value">87</div></div>
+                                </div>
+                            </div>
+                            <div class="metrics-group">
+                                <div class="metrics-group-header">Quality</div>
+                                <div class="metrics-group-body">
+                                    <div class="metric-cell"><div class="metric-label">Success %</div><div class="metric-value">96.5%</div></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="px-6 mt-4 border-b border-[var(--border-color)] bg-white flex-shrink-0">
+                        <div class="flex">
+                            <div class="section-tab">Overview</div>
+                            <div class="section-tab active">Process Graph</div>
+                            <div class="section-tab">Records</div>
+                        </div>
+                    </div>
+                    <div class="h-[40px] bg-[var(--tp-bar-bg)] border-b border-[var(--border-color)] flex items-center px-6 gap-4 flex-shrink-0">
+                        <span class="text-[11px] text-gray-500">Click a state to drill down into the child process</span>
+                        <div class="ml-auto flex items-center gap-2">
+                            <button class="zoom-btn" onclick="zoomDD(-1)">-</button>
+                            <span id="dd-zoom-level" class="text-[12px]">85%</span>
+                            <button class="zoom-btn" onclick="zoomDD(1)">+</button>
+                        </div>
+                    </div>
+                    <div class="flex-1 p-6 overflow-auto relative" id="dd-graph-area">
+                        <div id="dd-graph-container">
+                            <svg width="400" height="480" viewBox="0 0 400 480" id="dd-svg">
+                                <defs>
+                                    <marker id="ah-dd-gray" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#999"/></marker>
+                                </defs>
+
+                                <!-- Node: Received -->
+                                <g class="dd-node" data-dd-state="received" onclick="selectDDNode(this)">
+                                    <rect x="100" y="15" width="200" height="50" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/>
+                                    <text x="200" y="37" text-anchor="middle" font-size="13" font-weight="600" fill="var(--text-main)">Received</text>
+                                    <text x="200" y="54" text-anchor="middle" font-size="10" fill="var(--text-muted)">87 records | 1.2 Days avg</text>
+                                </g>
+                                <path class="dd-edge" d="M200 65 L200 95" stroke="#999" stroke-width="2" marker-end="url(#ah-dd-gray)"/>
+
+                                <!-- Node: Triage -->
+                                <g class="dd-node" data-dd-state="triage" onclick="selectDDNode(this)">
+                                    <rect x="100" y="95" width="200" height="50" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/>
+                                    <text x="200" y="117" text-anchor="middle" font-size="13" font-weight="600" fill="var(--text-main)">Triage</text>
+                                    <text x="200" y="134" text-anchor="middle" font-size="10" fill="var(--text-muted)">87 records | 2.8 Days avg</text>
+                                </g>
+                                <path class="dd-edge" d="M200 145 L200 175" stroke="#999" stroke-width="2" marker-end="url(#ah-dd-gray)"/>
+
+                                <!-- Node: In Review -->
+                                <g class="dd-node" data-dd-state="in-review" onclick="selectDDNode(this)">
+                                    <rect x="100" y="175" width="200" height="50" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/>
+                                    <text x="200" y="197" text-anchor="middle" font-size="13" font-weight="600" fill="var(--text-main)">In Review</text>
+                                    <text x="200" y="214" text-anchor="middle" font-size="10" fill="var(--text-muted)">87 records | 3.5 Days avg</text>
+                                </g>
+                                <path class="dd-edge" d="M200 225 L200 255" stroke="#999" stroke-width="2" marker-end="url(#ah-dd-gray)"/>
+
+                                <!-- Node: Approved -->
+                                <g class="dd-node" data-dd-state="approved" onclick="selectDDNode(this)">
+                                    <rect x="100" y="255" width="200" height="50" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/>
+                                    <text x="200" y="277" text-anchor="middle" font-size="13" font-weight="600" fill="var(--text-main)">Approved</text>
+                                    <text x="200" y="294" text-anchor="middle" font-size="10" fill="var(--text-muted)">87 records | 1.1 Days avg</text>
+                                </g>
+                                <path class="dd-edge" d="M200 305 L200 335" stroke="#999" stroke-width="2" marker-end="url(#ah-dd-gray)"/>
+
+                                <!-- Node: Completed (Crossing Point) -->
+                                <g class="dd-node crossing-point" data-dd-state="completed" onclick="selectDDNode(this)">
+                                    <rect x="75" y="335" width="250" height="56" rx="6" fill="var(--node-join-bg)" stroke="var(--node-join-stroke)" stroke-width="2"/>
+                                    <text x="200" y="357" text-anchor="middle" font-size="13" font-weight="600" fill="var(--text-main)">Completed</text>
+                                    <text x="200" y="374" text-anchor="middle" font-size="10" fill="var(--text-muted)">87 records | 0.8 Days avg</text>
+                                    <text x="200" y="388" text-anchor="middle" font-size="9" font-weight="600" fill="var(--veeva-orange)" class="cp-label">CROSSING POINT → Case Process</text>
+                                </g>
+                            </svg>
+                        </div>
+
+                        <!-- Drawer Scrim -->
+                        <div class="drawer-scrim" id="dd-scrim" onclick="closeDDDrawer()"></div>
+
+                        <!-- Drill-Down Drawer -->
+                        <div class="drill-drawer" id="dd-drawer">
+                            <div class="drawer-handle" id="dd-handle">
+                                <div class="drawer-handle-bar"></div>
+                            </div>
+                            <div class="drawer-header">
+                                <div class="drawer-title" id="dd-drawer-title">Case Process</div>
+                                <div class="drawer-badge" id="dd-drawer-badge">Child Process</div>
+                                <div class="drawer-meta" id="dd-drawer-meta">87 records | via Crossing Point</div>
+                                <button class="drawer-close" onclick="closeDDDrawer()">✕</button>
+                            </div>
+                            <div class="drawer-body" id="dd-drawer-body">
+                                <div class="flex items-start gap-6">
+                                    <!-- Child process graph in drawer -->
+                                    <svg width="420" height="520" viewBox="0 0 420 520" id="dd-child-svg">
+                                        <defs>
+                                            <marker id="ah-dd-child" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#999"/></marker>
+                                            <marker id="ah-dd-rework" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#cc4444"/></marker>
+                                        </defs>
+
+                                        <!-- Created -->
+                                        <g class="graph-node">
+                                            <rect x="110" y="10" width="200" height="44" rx="6" fill="var(--node-join-bg)" stroke="var(--node-join-stroke)" stroke-width="2"/>
+                                            <text x="210" y="29" text-anchor="middle" font-size="12" font-weight="600">Created</text>
+                                            <text x="210" y="45" text-anchor="middle" font-size="10" fill="var(--text-muted)">87 | 0.5 Days</text>
+                                        </g>
+                                        <path d="M210 54 L210 80" stroke="#999" stroke-width="2" marker-end="url(#ah-dd-child)"/>
+
+                                        <!-- Assessment -->
+                                        <g class="graph-node">
+                                            <rect x="135" y="80" width="150" height="44" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/>
+                                            <text x="210" y="99" text-anchor="middle" font-size="12" font-weight="600">Assessment</text>
+                                            <text x="210" y="115" text-anchor="middle" font-size="10" fill="var(--text-muted)">87 | 3.2 Days</text>
+                                        </g>
+                                        <path d="M210 124 L210 160" stroke="#999" stroke-width="2" marker-end="url(#ah-dd-child)"/>
+
+                                        <!-- Fast Track variant -->
+                                        <path d="M285 102 Q340 102 340 135" stroke="#999" stroke-width="1.5" stroke-dasharray="4,3" fill="none" marker-end="url(#ah-dd-child)"/>
+                                        <g class="graph-node">
+                                            <rect x="298" y="135" width="85" height="38" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/>
+                                            <text x="340" y="151" text-anchor="middle" font-size="11" font-weight="600">Fast Track</text>
+                                            <text x="340" y="165" text-anchor="middle" font-size="9" fill="var(--text-muted)">15 | 1.3 Days</text>
+                                        </g>
+                                        <path d="M340 173 Q340 210 285 225" stroke="#999" stroke-width="1.5" stroke-dasharray="4,3" fill="none" marker-end="url(#ah-dd-child)"/>
+
+                                        <!-- Investigation -->
+                                        <g class="graph-node">
+                                            <rect x="135" y="160" width="150" height="44" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/>
+                                            <text x="210" y="179" text-anchor="middle" font-size="12" font-weight="600">Investigation</text>
+                                            <text x="210" y="195" text-anchor="middle" font-size="10" fill="var(--text-muted)">72 | 4.8 Days</text>
+                                        </g>
+                                        <path d="M210 204 L210 240" stroke="#999" stroke-width="2" marker-end="url(#ah-dd-child)"/>
+
+                                        <!-- Resolution -->
+                                        <g class="graph-node">
+                                            <rect x="135" y="240" width="150" height="44" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/>
+                                            <text x="210" y="259" text-anchor="middle" font-size="12" font-weight="600">Resolution</text>
+                                            <text x="210" y="275" text-anchor="middle" font-size="10" fill="var(--text-muted)">87 | 2.1 Days</text>
+                                        </g>
+                                        <path d="M210 284 L210 320" stroke="#999" stroke-width="2" marker-end="url(#ah-dd-child)"/>
+
+                                        <!-- Pending Approval -->
+                                        <g class="graph-node">
+                                            <rect x="125" y="320" width="170" height="44" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/>
+                                            <text x="210" y="339" text-anchor="middle" font-size="12" font-weight="600">Pending Approval</text>
+                                            <text x="210" y="355" text-anchor="middle" font-size="10" fill="var(--text-muted)">87 | 1.5 Days</text>
+                                        </g>
+                                        <path d="M210 364 L210 400" stroke="#999" stroke-width="2" marker-end="url(#ah-dd-child)"/>
+
+                                        <!-- Rework loop -->
+                                        <path d="M125 342 Q90 342 90 280 L90 259 Q90 240 125 240" stroke="#cc4444" stroke-width="1.5" stroke-dasharray="4,3" fill="none" marker-end="url(#ah-dd-rework)"/>
+                                        <text x="80" y="300" text-anchor="middle" font-size="9" fill="#cc4444">1</text>
+
+                                        <!-- Closed -->
+                                        <g class="graph-node">
+                                            <rect x="125" y="400" width="170" height="44" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/>
+                                            <text x="210" y="419" text-anchor="middle" font-size="12" font-weight="600">Closed</text>
+                                            <text x="210" y="435" text-anchor="middle" font-size="10" fill="var(--text-muted)">87 | 5.2 Days</text>
+                                        </g>
+                                    </svg>
+
+                                    <!-- Metrics summary for child process -->
+                                    <div class="flex flex-col gap-4 min-w-[200px] pt-2">
+                                        <div class="text-[11px] font-bold text-gray-500 uppercase">Case Process Metrics</div>
+                                        <div class="flex flex-col gap-3">
+                                            <div class="border border-[var(--border-color)] rounded p-3 bg-white">
+                                                <div class="text-[10px] text-gray-500 uppercase">Cycle Time</div>
+                                                <div class="text-[18px] font-bold mt-1">17.3 Days</div>
+                                                <div class="text-[11px] text-gray-400">avg across 87 records</div>
+                                            </div>
+                                            <div class="border border-[var(--border-color)] rounded p-3 bg-white">
+                                                <div class="text-[10px] text-gray-500 uppercase">Variants</div>
+                                                <div class="text-[18px] font-bold mt-1">2</div>
+                                                <div class="text-[11px] text-gray-400">Main (83%) + Fast Track (17%)</div>
+                                            </div>
+                                            <div class="border border-[var(--border-color)] rounded p-3 bg-white">
+                                                <div class="text-[10px] text-gray-500 uppercase">Rework Rate</div>
+                                                <div class="text-[18px] font-bold mt-1">3.4%</div>
+                                                <div class="text-[11px] text-gray-400">Pending Approval → Investigation</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </main>
 
     <script>
-        const states = [
-            { label: '[Inbox] Received', days: 1.2 },
-            { label: '[Inbox] Triage', days: 2.8 },
-            { label: '[Inbox] In Review', days: 3.5 },
-            { label: '[Inbox] Approved', days: 1.1 },
-            { label: '[Inbox] Completed', days: 0.8 },
-            { label: 'HANDOFF', days: 0.2 },
-            { label: '[Case] Created', days: 0.5 },
-            { label: '[Case] Assessment', days: 3.2 },
-            { label: '[Case] Investigation', days: 4.8 },
-            { label: '[Case] Resolution', days: 2.1 },
-            { label: '[Case] Pending Approval', days: 1.5 },
-            { label: '[Case] Closed', days: 5.2 }
-        ];
+        // =============================================
+        // PROCESS CONFIGURATIONS
+        // =============================================
+        let currentProcess = 'inbox-case';
 
+        const PROCESSES = {
+            'inbox-case': {
+                states: [
+                    { label: '[Inbox] Received', days: 1.2 },
+                    { label: '[Inbox] Triage', days: 2.8 },
+                    { label: '[Inbox] In Review', days: 3.5 },
+                    { label: '[Inbox] Approved', days: 1.1 },
+                    { label: '[Inbox] Completed', days: 0.8 },
+                    { label: 'CROSSING POINT', days: 0.2 },
+                    { label: '[Case] Created', days: 0.5 },
+                    { label: '[Case] Assessment', days: 3.2 },
+                    { label: '[Case] Investigation', days: 4.8 },
+                    { label: '[Case] Resolution', days: 2.1 },
+                    { label: '[Case] Pending Approval', days: 1.5 },
+                    { label: '[Case] Closed', days: 5.2 }
+                ],
+                flatStateMap: { 'f0':0,'f1':1,'f2':2,'f3':3,'f4':4,'f6':6,'f7':7,'f8':8,'f9':9,'f10':10,'f11':11 },
+                flatNodes: [
+                    { id:'f0', label:'Received', stats:'87 | 1.2 Days', color:'inbox', v:[1,2,3,4] },
+                    { id:'f1', label:'Triage', stats:'87 | 2.8 Days', color:'inbox', v:[1,2,3,4] },
+                    { id:'f-def', label:'Deferred', stats:'13 | 4.1 Days', color:'inbox', v:[2,4] },
+                    { id:'f2', label:'In Review', stats:'87 | 3.5 Days', color:'inbox', v:[1,2,3,4] },
+                    { id:'f3', label:'Approved', stats:'87 | 1.1 Days', color:'inbox', v:[1,2,3,4] },
+                    { id:'f4', label:'Completed', stats:'87 | 0.8 Days', color:'inbox', v:[1,2,3,4] },
+                    { type:'cp', stats:'0.2 Days', v:[1,2,3,4] },
+                    { id:'f6', label:'Created', stats:'87 | 0.5 Days', color:'case', v:[1,2,3,4] },
+                    { id:'f7', label:'Assessment', stats:'87 | 3.2 Days', color:'case', v:[1,2,3,4] },
+                    { id:'f-ft', label:'Fast Track', stats:'15 | 1.3 Days', color:'case', v:[3,4] },
+                    { id:'f8', label:'Investigation', stats:'72 | 4.8 Days', color:'case', v:[1,2,3,4] },
+                    { id:'f9', label:'Resolution', stats:'87 | 2.1 Days', color:'case', v:[1,2,3,4] },
+                    { id:'f10', label:'Pending Approval', stats:'87 | 1.5 Days', color:'case', v:[1,2,3,4] },
+                    { id:'f11', label:'Closed', stats:'87 | 5.2 Days', color:'case', v:[1,2,3,4] }
+                ],
+                title: 'Inbox Item → Case Process',
+                flatTitle: 'End-to-End Process: Inbox Item → Case',
+                ddTitle: 'Inbox Item Process (Parent)',
+                cpHeader: `<div class="text-[10px] uppercase font-bold text-gray-500 tracking-wider flex-1 text-center border-r">Inbox Item Process</div>
+                    <div class="text-[10px] uppercase font-bold text-gray-500 tracking-wider w-[150px] text-center">Crossing Point</div>
+                    <div class="text-[10px] uppercase font-bold text-gray-500 tracking-wider flex-1 text-center border-l">Case Process</div>`,
+                volume: { start: 87, end: 87 },
+                quality: '96.5%',
+                ddCrossingPoints: {
+                    'completed': { title: 'Case Process', badge: 'Child Process', meta: '87 records | via Crossing Point: Completed → Created' }
+                },
+                ddCpCards: `<div class="bg-white border border-[var(--veeva-orange)] rounded px-3 py-2 text-[12px]">
+                    <div class="font-semibold text-[var(--veeva-orange)]">Completed → Created</div>
+                    <div class="text-[11px] text-gray-500 mt-1">87 records | 0.2d avg</div></div>`,
+                leftVariantTitle: 'Inbox Item Variants',
+                rightVariantTitle: 'Case Variants',
+                leftVariants: [{ w:'85%', d:'5.2d' },{ w:'15%', d:'8.1d' }],
+                rightVariants: [{ w:'92%', d:'14.2d' },{ w:'8%', d:'22.1d' }],
+                flatVariantTitle: 'End-to-End Variants',
+                flatVariants: [{ w:'70%', d:'19.4d' },{ w:'15%', d:'23.5d' },{ w:'10%', d:'20.7d' },{ w:'5%', d:'24.8d' }]
+            },
+            'dev-capa': {
+                states: [
+                    { label: '[Dev] Define Team', days: 2.1 },
+                    { label: '[Dev] In Investigation', days: 5.3 },
+                    { label: '[Dev] In CAPA Planning', days: 3.8 },
+                    { label: 'CROSSING POINT 1', days: 0.3 },
+                    { label: '[CAPA] Define Team', days: 1.9 },
+                    { label: '[CAPA] Ready for Impl', days: 4.2 },
+                    { label: '[CAPA] In Implementation', days: 6.1 },
+                    { label: '[CAPA] Closed', days: 2.0 },
+                    { label: 'CROSSING POINT 2', days: 0.1 },
+                    { label: '[Dev] Closed', days: 1.4 }
+                ],
+                flatStateMap: { 'f0':0,'f1':1,'f2':2,'f4':4,'f5':5,'f6':6,'f7':7,'f9':9 },
+                flatNodes: [
+                    { id:'f0', label:'Define Team', stats:'42 | 2.1 Days', color:'dev', v:[1,2,3,4] },
+                    { id:'f1', label:'In Investigation', stats:'42 | 5.3 Days', color:'dev', v:[1,2,3,4] },
+                    { id:'f4-early', label:'Early CAPA Start', stats:'8 | 1.2 Days', color:'capa', v:[2,4] },
+                    { id:'f2', label:'In CAPA Planning', stats:'42 | 3.8 Days', color:'dev', v:[1,2,3,4] },
+                    { type:'cp', stats:'0.3 Days', v:[1,2,3,4] },
+                    { id:'f4', label:'Define Team', stats:'42 | 1.9 Days', color:'capa', v:[1,2,3,4] },
+                    { id:'f5', label:'Ready for Impl', stats:'42 | 4.2 Days', color:'capa', v:[1,2,3,4] },
+                    { id:'f6', label:'In Implementation', stats:'42 | 6.1 Days', color:'capa', v:[1,2,3,4] },
+                    { id:'f9-early', label:'Early Dev Close', stats:'5 | 0.8 Days', color:'dev', v:[3,4] },
+                    { id:'f7', label:'Closed', stats:'42 | 2.0 Days', color:'capa', v:[1,2,3,4] },
+                    { type:'cp', stats:'0.1 Days', v:[1,2,3,4] },
+                    { id:'f9', label:'Closed', stats:'42 | 1.4 Days', color:'dev', v:[1,2,3,4] }
+                ],
+                title: 'Deviation → CAPA Process',
+                flatTitle: 'End-to-End Process: Deviation → CAPA',
+                ddTitle: 'Deviation Process (Parent)',
+                cpHeader: `<div class="text-[10px] uppercase font-bold text-gray-500 tracking-wider flex-1 text-center border-r">Deviation Process</div>
+                    <div class="text-[10px] uppercase font-bold text-gray-500 tracking-wider w-[150px] text-center">Crossing Points</div>
+                    <div class="text-[10px] uppercase font-bold text-gray-500 tracking-wider flex-1 text-center border-l">CAPA Process</div>`,
+                volume: { start: 42, end: 42 },
+                quality: '91.2%',
+                ddCrossingPoints: {
+                    'in-capa-planning': { title: 'CAPA Process', badge: 'Child Process', meta: '42 records | via Crossing Point: In CAPA Planning → Define Team' },
+                    'dev-closed': { title: 'CAPA Completion', badge: 'Return Crossing Point', meta: '42 records | via Crossing Point: CAPA Closed → Dev Closed' }
+                },
+                ddCpCards: `<div class="bg-white border border-[var(--veeva-orange)] rounded px-3 py-2 text-[12px] mb-2">
+                    <div class="font-semibold text-[var(--veeva-orange)]">In CAPA Planning → Define Team</div>
+                    <div class="text-[11px] text-gray-500 mt-1">42 records | 0.3d avg</div></div>
+                    <div class="bg-white border border-[var(--veeva-orange)] rounded px-3 py-2 text-[12px]">
+                    <div class="font-semibold text-[var(--veeva-orange)]">CAPA Closed → Dev Closed</div>
+                    <div class="text-[11px] text-gray-500 mt-1">42 records | 0.1d avg</div></div>`,
+                leftVariantTitle: 'Deviation Variants',
+                rightVariantTitle: 'CAPA Variants',
+                leftVariants: [{ w:'90%', d:'11.2d' },{ w:'10%', d:'14.5d' }],
+                rightVariants: [{ w:'88%', d:'14.2d' },{ w:'12%', d:'17.8d' }],
+                flatVariantTitle: 'End-to-End Variants',
+                flatVariants: [{ w:'65%', d:'25.8d' },{ w:'15%', d:'28.2d' },{ w:'12%', d:'24.1d' },{ w:'8%', d:'27.5d' }]
+            }
+        };
+
+        // =============================================
+        // SVG TEMPLATES
+        // =============================================
+        const SVG_TEMPLATES = {
+            'inbox-case': {}, // populated from initial HTML on load
+            'dev-capa': {
+                cpSvg: `<svg width="910" height="420" viewBox="0 0 910 420" id="main-svg">
+                    <defs><marker id="ah-gray" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#999"/></marker>
+                    <marker id="ah-orange" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="var(--veeva-orange)"/></marker></defs>
+                    <g id="left-process-group">
+                        <g class="graph-node" data-state="0"><rect x="115" y="15" width="150" height="44" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/><text x="190" y="34" text-anchor="middle" font-size="12" font-weight="600" fill="var(--text-main)">Define Team</text><text x="190" y="50" text-anchor="middle" font-size="10" fill="var(--text-muted)">42 | 2.1 Days</text></g>
+                        <path class="graph-edge" d="M190 59 L190 95" stroke="#999" stroke-width="2" marker-end="url(#ah-gray)"/>
+                        <g class="graph-node" data-state="1"><rect x="115" y="95" width="150" height="44" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/><text x="190" y="114" text-anchor="middle" font-size="12" font-weight="600" fill="var(--text-main)">In Investigation</text><text x="190" y="130" text-anchor="middle" font-size="10" fill="var(--text-muted)">42 | 5.3 Days</text></g>
+                        <path class="graph-edge" d="M190 139 L190 180" stroke="#999" stroke-width="2" marker-end="url(#ah-gray)"/>
+                        <g class="graph-node" data-state="2"><rect x="100" y="180" width="180" height="44" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/><text x="190" y="199" text-anchor="middle" font-size="12" font-weight="600" fill="var(--text-main)">In CAPA Planning</text><text x="190" y="215" text-anchor="middle" font-size="10" fill="var(--text-muted)">42 | 3.8 Days</text></g>
+                        <g class="graph-node" data-state="9"><rect x="115" y="340" width="150" height="44" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/><text x="190" y="359" text-anchor="middle" font-size="12" font-weight="600" fill="var(--text-main)">Closed</text><text x="190" y="375" text-anchor="middle" font-size="10" fill="var(--text-muted)">42 | 1.4 Days</text></g>
+                    </g>
+                    <g id="handoff-group">
+                        <path class="graph-edge" data-edge="cp1" d="M280 202 L380 202 Q455 202 455 140" stroke="var(--veeva-orange)" stroke-width="2.5" stroke-dasharray="6,4" fill="none"/>
+                        <rect x="380" y="95" width="150" height="44" rx="6" fill="white" stroke="var(--node-default-stroke)" stroke-width="1.5"/><text x="455" y="114" text-anchor="middle" font-size="11" font-weight="700" fill="var(--text-main)">CP 1</text><text x="455" y="130" text-anchor="middle" font-size="10" fill="var(--text-muted)">42 | 0.3 Days</text>
+                        <path class="graph-edge" data-edge="cp1b" d="M455 95 Q455 37 560 37 L630 37" stroke="var(--veeva-orange)" stroke-width="2.5" stroke-dasharray="6,4" fill="none" marker-end="url(#ah-orange)"/>
+                        <path class="graph-edge" data-edge="cp2a" d="M630 302 L560 302 Q455 302 455 260" stroke="var(--veeva-orange)" stroke-width="2.5" stroke-dasharray="6,4" fill="none"/>
+                        <rect x="380" y="215" width="150" height="44" rx="6" fill="white" stroke="var(--node-default-stroke)" stroke-width="1.5"/><text x="455" y="234" text-anchor="middle" font-size="11" font-weight="700" fill="var(--text-main)">CP 2</text><text x="455" y="250" text-anchor="middle" font-size="10" fill="var(--text-muted)">42 | 0.1 Days</text>
+                        <path class="graph-edge" data-edge="cp2b" d="M455 260 Q455 362 350 362 L265 362" stroke="var(--veeva-orange)" stroke-width="2.5" stroke-dasharray="6,4" fill="none" marker-end="url(#ah-orange)"/>
+                    </g>
+                    <g id="right-process-group" transform="translate(530, 0)">
+                        <g class="graph-node" data-state="4"><rect x="100" y="15" width="180" height="44" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/><text x="190" y="34" text-anchor="middle" font-size="12" font-weight="600">Define Team</text><text x="190" y="50" text-anchor="middle" font-size="10" fill="var(--text-muted)">42 | 1.9 Days</text></g>
+                        <path class="graph-edge" d="M190 59 L190 100" stroke="#999" stroke-width="2" marker-end="url(#ah-gray)"/>
+                        <g class="graph-node" data-state="5"><rect x="90" y="100" width="200" height="44" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/><text x="190" y="119" text-anchor="middle" font-size="12" font-weight="600">Ready for Impl</text><text x="190" y="135" text-anchor="middle" font-size="10" fill="var(--text-muted)">42 | 4.2 Days</text></g>
+                        <path class="graph-edge" d="M190 144 L190 190" stroke="#999" stroke-width="2" marker-end="url(#ah-gray)"/>
+                        <g class="graph-node" data-state="6"><rect x="90" y="190" width="200" height="44" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/><text x="190" y="209" text-anchor="middle" font-size="12" font-weight="600">In Implementation</text><text x="190" y="225" text-anchor="middle" font-size="10" fill="var(--text-muted)">42 | 6.1 Days</text></g>
+                        <path class="graph-edge" d="M190 234 L190 280" stroke="#999" stroke-width="2" marker-end="url(#ah-gray)"/>
+                        <g class="graph-node" data-state="7"><rect x="115" y="280" width="150" height="44" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/><text x="190" y="299" text-anchor="middle" font-size="12" font-weight="600">Closed</text><text x="190" y="315" text-anchor="middle" font-size="10" fill="var(--text-muted)">42 | 2.0 Days</text></g>
+                    </g></svg>`,
+                ddParentSvg: `<svg width="400" height="420" viewBox="0 0 400 420" id="dd-svg">
+                    <defs><marker id="ah-dd-gray" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#999"/></marker></defs>
+                    <g class="dd-node" data-dd-state="define-team" onclick="selectDDNode(this)"><rect x="100" y="15" width="200" height="50" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/><text x="200" y="37" text-anchor="middle" font-size="13" font-weight="600" fill="var(--text-main)">Define Team</text><text x="200" y="54" text-anchor="middle" font-size="10" fill="var(--text-muted)">42 records | 2.1 Days avg</text></g>
+                    <path class="dd-edge" d="M200 65 L200 95" stroke="#999" stroke-width="2" marker-end="url(#ah-dd-gray)"/>
+                    <g class="dd-node" data-dd-state="in-investigation" onclick="selectDDNode(this)"><rect x="100" y="95" width="200" height="50" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/><text x="200" y="117" text-anchor="middle" font-size="13" font-weight="600" fill="var(--text-main)">In Investigation</text><text x="200" y="134" text-anchor="middle" font-size="10" fill="var(--text-muted)">42 records | 5.3 Days avg</text></g>
+                    <path class="dd-edge" d="M200 145 L200 175" stroke="#999" stroke-width="2" marker-end="url(#ah-dd-gray)"/>
+                    <g class="dd-node crossing-point" data-dd-state="in-capa-planning" onclick="selectDDNode(this)"><rect x="75" y="175" width="250" height="56" rx="6" fill="var(--node-join-bg)" stroke="var(--node-join-stroke)" stroke-width="2"/><text x="200" y="197" text-anchor="middle" font-size="13" font-weight="600" fill="var(--text-main)">In CAPA Planning</text><text x="200" y="214" text-anchor="middle" font-size="10" fill="var(--text-muted)">42 records | 3.8 Days avg</text><text x="200" y="228" text-anchor="middle" font-size="9" font-weight="600" fill="var(--veeva-orange)" class="cp-label">CROSSING POINT → CAPA Process</text></g>
+                    <path class="dd-edge" d="M200 231 L200 275" stroke="#999" stroke-width="2" marker-end="url(#ah-dd-gray)"/>
+                    <g class="dd-node crossing-point" data-dd-state="dev-closed" onclick="selectDDNode(this)"><rect x="75" y="275" width="250" height="56" rx="6" fill="var(--node-join-bg)" stroke="var(--node-join-stroke)" stroke-width="2"/><text x="200" y="297" text-anchor="middle" font-size="13" font-weight="600" fill="var(--text-main)">Closed</text><text x="200" y="314" text-anchor="middle" font-size="10" fill="var(--text-muted)">42 records | 1.4 Days avg</text><text x="200" y="328" text-anchor="middle" font-size="9" font-weight="600" fill="var(--veeva-orange)" class="cp-label">CROSSING POINT ← CAPA Closed</text></g>
+                </svg>`,
+                ddChildHtml: `<div class="flex items-start gap-6">
+                    <svg width="420" height="380" viewBox="0 0 420 380" id="dd-child-svg">
+                        <defs><marker id="ah-dd-child" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#999"/></marker></defs>
+                        <g class="graph-node"><rect x="110" y="10" width="200" height="44" rx="6" fill="var(--node-join-bg)" stroke="var(--node-join-stroke)" stroke-width="2"/><text x="210" y="29" text-anchor="middle" font-size="12" font-weight="600">Define Team</text><text x="210" y="45" text-anchor="middle" font-size="10" fill="var(--text-muted)">42 | 1.9 Days</text></g>
+                        <path d="M210 54 L210 80" stroke="#999" stroke-width="2" marker-end="url(#ah-dd-child)"/>
+                        <g class="graph-node"><rect x="100" y="80" width="220" height="44" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/><text x="210" y="99" text-anchor="middle" font-size="12" font-weight="600">Ready for Impl</text><text x="210" y="115" text-anchor="middle" font-size="10" fill="var(--text-muted)">42 | 4.2 Days</text></g>
+                        <path d="M210 124 L210 160" stroke="#999" stroke-width="2" marker-end="url(#ah-dd-child)"/>
+                        <g class="graph-node"><rect x="100" y="160" width="220" height="44" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/><text x="210" y="179" text-anchor="middle" font-size="12" font-weight="600">In Implementation</text><text x="210" y="195" text-anchor="middle" font-size="10" fill="var(--text-muted)">42 | 6.1 Days</text></g>
+                        <path d="M210 204 L210 240" stroke="#999" stroke-width="2" marker-end="url(#ah-dd-child)"/>
+                        <g class="graph-node"><rect x="135" y="240" width="150" height="44" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/><text x="210" y="259" text-anchor="middle" font-size="12" font-weight="600">Closed</text><text x="210" y="275" text-anchor="middle" font-size="10" fill="var(--text-muted)">42 | 2.0 Days</text></g>
+                    </svg>
+                    <div class="flex flex-col gap-4 min-w-[200px] pt-2">
+                        <div class="text-[11px] font-bold text-gray-500 uppercase">CAPA Process Metrics</div>
+                        <div class="flex flex-col gap-3">
+                            <div class="border border-[var(--border-color)] rounded p-3 bg-white"><div class="text-[10px] text-gray-500 uppercase">Cycle Time</div><div class="text-[18px] font-bold mt-1">14.2 Days</div><div class="text-[11px] text-gray-400">avg across 42 records</div></div>
+                            <div class="border border-[var(--border-color)] rounded p-3 bg-white"><div class="text-[10px] text-gray-500 uppercase">Variants</div><div class="text-[18px] font-bold mt-1">2</div><div class="text-[11px] text-gray-400">Main (88%) + Expedited (12%)</div></div>
+                            <div class="border border-[var(--border-color)] rounded p-3 bg-white"><div class="text-[10px] text-gray-500 uppercase">On-Time Rate</div><div class="text-[18px] font-bold mt-1">91.2%</div><div class="text-[11px] text-gray-400">within SLA target</div></div>
+                        </div>
+                    </div></div>`
+            }
+        };
+
+        function getProc() { return PROCESSES[currentProcess]; }
+        function getStates() { return getProc().states; }
+        function getFlatStateMap() { return getProc().flatStateMap; }
+
+        // =============================================
+        // TAB SWITCHING
+        // =============================================
         function switchTab(tabId) {
             document.querySelectorAll('#main-tabs .tab-btn').forEach(btn => btn.classList.remove('active'));
             event.currentTarget.classList.add('active');
-            document.getElementById('admin-tab').classList.add('hidden');
-            document.getElementById('monitor-tab').classList.add('hidden');
+            ['admin-tab', 'monitor-tab', 'flat-tab', 'drilldown-tab'].forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+            });
             document.getElementById(tabId).classList.remove('hidden');
         }
 
+        // =============================================
+        // PROCESS SWITCHING
+        // =============================================
+        function switchProcess(processId) {
+            currentProcess = processId;
+            const proc = getProc();
+
+            // Sync all dropdowns
+            ['process-select', 'flat-process-select', 'dd-process-select'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = processId;
+            });
+
+            // --- Crossing Point View ---
+            document.getElementById('monitor-title').textContent = proc.title;
+            // Swap header
+            const cpHeaderEl = document.querySelector('#monitor-tab .joined-graph-container .bg-\\[\\#fafafa\\]');
+            if (cpHeaderEl) cpHeaderEl.innerHTML = proc.cpHeader;
+            // Swap SVG
+            const cpSvgContainer = document.querySelector('#monitor-tab .joined-graph-container .p-6');
+            if (cpSvgContainer) cpSvgContainer.innerHTML = SVG_TEMPLATES[processId].cpSvg;
+            // Variant panels
+            buildVariantPanel('left-variants', proc.leftVariants, "toggleVariant('left',");
+            buildVariantPanel('right-variants', proc.rightVariants, "toggleVariant('right',");
+            document.querySelector('#monitor-tab .variant-panel:first-of-type .variant-panel-header').textContent = proc.leftVariantTitle;
+            const rightVPHeader = document.querySelectorAll('#monitor-tab .variant-panel');
+            if (rightVPHeader[1]) rightVPHeader[1].querySelector('.variant-panel-header').textContent = proc.rightVariantTitle;
+            // Volume & quality metrics
+            document.querySelectorAll('#metrics-bar-container .metric-value').forEach((el, i) => {
+                if (i === 2) el.textContent = proc.volume.start;
+                if (i === 3) el.textContent = proc.volume.end;
+                if (i === 4) el.textContent = proc.quality;
+            });
+            updateCycleTime();
+
+            // --- Flattened View ---
+            document.querySelector('#flat-tab h2').textContent = proc.flatTitle;
+            flatSelectedVariant = 0;
+            renderFlatSvg();
+            buildVariantPanel('flat-variants', proc.flatVariants, "toggleFlatVariantRow(");
+            document.querySelector('#flat-tab .variant-panel-header').textContent = proc.flatVariantTitle;
+            initFlatCycleTime();
+
+            // --- Drill-Down View ---
+            document.querySelector('#drilldown-tab h2').textContent = proc.ddTitle;
+            document.getElementById('dd-graph-container').innerHTML = SVG_TEMPLATES[processId].ddParentSvg;
+            document.getElementById('dd-drawer-body').innerHTML = SVG_TEMPLATES[processId].ddChildHtml;
+            document.getElementById('dd-cp-cards').innerHTML = proc.ddCpCards;
+            closeDDDrawer();
+        }
+
+        function buildVariantPanel(containerId, variants, onclickPrefix) {
+            const container = document.getElementById(containerId);
+            if (!container || !variants) return;
+            container.innerHTML = variants.map((v, i) => `
+                <div class="variant-row ${i===0?'selected':''}" onclick="${onclickPrefix}${i})">
+                    <span class="variant-num w-4 text-right text-[11px]">${i+1}</span>
+                    <div class="variant-bar-track flex-1 h-3 bg-gray-100 rounded overflow-hidden">
+                        <div class="variant-bar-fill h-full bg-[#1453b8]" style="width:${v.w}"></div>
+                    </div>
+                    <span class="variant-days w-10 text-right text-[11px]">${v.d}</span>
+                </div>`).join('');
+        }
+
+        // =============================================
+        // CROSSING POINT VIEW - CYCLE TIME
+        // =============================================
         function updateCycleTime() {
             const startSelect = document.getElementById('ct-start');
             const endSelect = document.getElementById('ct-end');
-            
+            const st = getStates();
             startSelect.innerHTML = '';
             endSelect.innerHTML = '';
-
-            states.forEach((state, i) => {
-                const optStart = new Option(state.label, i);
-                const optEnd = new Option(state.label, i);
-                startSelect.add(optStart);
-                endSelect.add(optEnd);
+            st.forEach((s, i) => {
+                startSelect.add(new Option(s.label, i));
+                endSelect.add(new Option(s.label, i));
             });
-
             startSelect.selectedIndex = 0;
-            endSelect.selectedIndex = states.length - 1;
-            
+            endSelect.selectedIndex = st.length - 1;
             updateMetrics();
         }
 
         function updateMetrics() {
             const startIdx = parseInt(document.getElementById('ct-start').value);
             const endIdx = parseInt(document.getElementById('ct-end').value);
-            
+            const st = getStates();
             if (startIdx > endIdx) {
                 document.getElementById('avg-metric').textContent = '0.0';
                 document.getElementById('med-metric').textContent = '0.0';
                 highlightGraph(-1, -1);
                 return;
             }
-
-            // Calculate total days in range
             let totalDays = 0;
-            for (let i = startIdx; i <= endIdx; i++) {
-                totalDays += states[i].days;
-            }
-
+            for (let i = startIdx; i <= endIdx; i++) totalDays += st[i].days;
             document.getElementById('avg-metric').textContent = totalDays.toFixed(1);
-            document.getElementById('med-metric').textContent = (totalDays * 0.85).toFixed(1); // Simulating median
-
+            document.getElementById('med-metric').textContent = (totalDays * 0.85).toFixed(1);
             highlightGraph(startIdx, endIdx);
         }
 
         function highlightGraph(start, end) {
-            const nodes = document.querySelectorAll('.graph-node');
-            const edges = document.querySelectorAll('.graph-edge');
-
-            nodes.forEach(node => {
+            const svg = document.getElementById('main-svg');
+            if (!svg) return;
+            svg.querySelectorAll('.graph-node').forEach(node => {
                 const idx = parseInt(node.getAttribute('data-state'));
-                
-                // Reset classes
                 node.classList.remove('ct-start-active', 'ct-end-active', 'fade-out');
-                
-                if (idx === start) {
-                    node.classList.add('ct-start-active');
-                } else if (idx === end) {
-                    node.classList.add('ct-end-active');
-                }
+                if (idx === start) node.classList.add('ct-start-active');
+                else if (idx === end) node.classList.add('ct-end-active');
             });
-
-            edges.forEach(edge => {
-                edge.classList.remove('fade-out');
-            });
+            svg.querySelectorAll('.graph-edge').forEach(e => e.classList.remove('fade-out'));
         }
 
         function zoom(dir) {
@@ -716,11 +1400,12 @@
 
         function toggleVariant(side, index) {
             const container = document.getElementById(side + '-variants');
+            if (!container) return;
             container.querySelectorAll('.variant-row').forEach((r, i) => {
                 i === index ? r.classList.add('selected') : r.classList.remove('selected');
             });
-            
             const mainSvg = document.getElementById('main-svg');
+            if (!mainSvg) return;
             if (side === 'left') {
                 mainSvg.querySelectorAll('.variant-2-only').forEach(el => {
                     index === 1 ? el.classList.add('fade-out') : el.classList.remove('fade-out');
@@ -734,17 +1419,212 @@
 
         function toggleResolution() {
             const isMany = document.querySelector('input[name="join-type"][value="1:many"]').checked;
-            const resSettings = document.getElementById('resolution-settings');
-            if (isMany) {
-                resSettings.classList.remove('hidden');
+            document.getElementById('resolution-settings').classList.toggle('hidden', !isMany);
+        }
+
+        // =============================================
+        // FLATTENED VIEW
+        // =============================================
+        let flatSelectedVariant = 0;
+
+        function toggleFlatVariantRow(index) {
+            flatSelectedVariant = index;
+            const container = document.getElementById('flat-variants');
+            if (container) container.querySelectorAll('.variant-row').forEach((r, i) => {
+                i === index ? r.classList.add('selected') : r.classList.remove('selected');
+            });
+            renderFlatSvg();
+            highlightFlatGraph(
+                parseInt(document.getElementById('flat-ct-start')?.value ?? 0),
+                parseInt(document.getElementById('flat-ct-end')?.value ?? 0)
+            );
+        }
+
+        function renderFlatSvg() {
+            const proc = getProc();
+            const nodes = proc.flatNodes;
+            const variantNum = flatSelectedVariant + 1;
+            const cx = 130, nodeW = 180, nodeH = 40, gap = 16, cpGap = 36;
+
+            // Filter to nodes visible in the selected variant
+            const visible = nodes.filter(n => n.v.includes(variantNum));
+
+            // Calculate positions
+            let y = 10;
+            const positions = [];
+            for (const node of visible) {
+                if (node.type === 'cp') {
+                    positions.push({ ...node, y, h: cpGap });
+                    y += cpGap;
+                } else {
+                    positions.push({ ...node, y, h: nodeH });
+                    y += nodeH + gap;
+                }
+            }
+            const totalH = y + 10;
+
+            // Build SVG
+            let svg = `<svg width="320" height="${totalH}" viewBox="0 0 320 ${totalH}" id="flat-svg" class="p-4">
+                <defs><marker id="ah-flat-gray" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#999"/></marker>
+                <marker id="ah-flat-orange" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="var(--veeva-orange)"/></marker></defs>`;
+
+            for (let i = 0; i < positions.length; i++) {
+                const p = positions[i];
+                if (p.type === 'cp') {
+                    // Crossing point: orange dashed edge with label
+                    const y1 = p.y;
+                    const y2 = p.y + cpGap;
+                    svg += `<path class="graph-edge" d="M${cx} ${y1} L${cx} ${y2}" stroke="var(--veeva-orange)" stroke-width="2.5" stroke-dasharray="6,4" fill="none" marker-end="url(#ah-flat-orange)"/>`;
+                    svg += `<rect x="${cx-42}" y="${y1 + (cpGap-18)/2}" width="84" height="18" rx="9" fill="var(--veeva-orange)" opacity="0.15"/>`;
+                    svg += `<text x="${cx}" y="${y1 + cpGap/2 + 5}" text-anchor="middle" font-size="9" font-weight="600" fill="var(--veeva-orange)">${p.stats}</text>`;
+                } else {
+                    // State node
+                    const rx = cx - nodeW/2;
+                    const colorClass = `flat-process-${p.color}`;
+                    svg += `<g class="graph-node ${colorClass}" data-state="${p.id}">`;
+                    svg += `<rect x="${rx}" y="${p.y}" width="${nodeW}" height="${nodeH}" rx="6" stroke-width="1.5"/>`;
+                    svg += `<text x="${cx}" y="${p.y + 17}" text-anchor="middle" font-size="12" font-weight="600" class="node-name">${p.label}</text>`;
+                    svg += `<text x="${cx}" y="${p.y + 32}" text-anchor="middle" font-size="10" fill="var(--text-muted)">${p.stats}</text>`;
+                    svg += `</g>`;
+
+                    // Edge to next node (if not last and next is not a cp)
+                    if (i < positions.length - 1) {
+                        const next = positions[i + 1];
+                        if (next.type !== 'cp') {
+                            svg += `<path class="graph-edge" d="M${cx} ${p.y + nodeH} L${cx} ${next.y}" stroke="#999" stroke-width="2" marker-end="url(#ah-flat-gray)"/>`;
+                        }
+                    }
+                }
+            }
+            svg += '</svg>';
+            document.getElementById('flat-graph-container').innerHTML = svg;
+        }
+
+        function initFlatCycleTime() {
+            const startSel = document.getElementById('flat-ct-start');
+            const endSel = document.getElementById('flat-ct-end');
+            const st = getStates();
+            startSel.innerHTML = '';
+            endSel.innerHTML = '';
+            st.forEach((s, i) => {
+                startSel.add(new Option(s.label, i));
+                endSel.add(new Option(s.label, i));
+            });
+            startSel.selectedIndex = 0;
+            endSel.selectedIndex = st.length - 1;
+            updateFlatMetrics();
+        }
+
+        function updateFlatMetrics() {
+            const startIdx = parseInt(document.getElementById('flat-ct-start').value);
+            const endIdx = parseInt(document.getElementById('flat-ct-end').value);
+            const st = getStates();
+            if (startIdx > endIdx) {
+                document.getElementById('flat-avg-metric').textContent = '0.0';
+                document.getElementById('flat-med-metric').textContent = '0.0';
+                highlightFlatGraph(-1, -1);
+                return;
+            }
+            let totalDays = 0;
+            for (let i = startIdx; i <= endIdx; i++) totalDays += st[i].days;
+            document.getElementById('flat-avg-metric').textContent = totalDays.toFixed(1);
+            document.getElementById('flat-med-metric').textContent = (totalDays * 0.85).toFixed(1);
+            highlightFlatGraph(startIdx, endIdx);
+        }
+
+        function highlightFlatGraph(start, end) {
+            const flatSvg = document.getElementById('flat-svg');
+            if (!flatSvg) return;
+            const fsm = getFlatStateMap();
+            flatSvg.querySelectorAll('.graph-node').forEach(node => {
+                const ds = node.getAttribute('data-state');
+                const idx = fsm !== undefined ? fsm[ds] : undefined;
+                node.classList.remove('ct-start-active', 'ct-end-active');
+                if (idx === start) node.classList.add('ct-start-active');
+                else if (idx === end) node.classList.add('ct-end-active');
+            });
+        }
+
+        // =============================================
+        // DRILL-DOWN VIEW
+        // =============================================
+        let ddSelectedNode = null;
+
+        function zoomDD(dir) {
+            let level = parseInt(document.getElementById('dd-zoom-level').textContent);
+            level += dir * 5;
+            level = Math.max(30, Math.min(150, level));
+            document.getElementById('dd-zoom-level').textContent = level + '%';
+            document.getElementById('dd-graph-container').style.transform = `scale(${level/100})`;
+            document.getElementById('dd-graph-container').style.transformOrigin = 'top left';
+        }
+
+        function selectDDNode(nodeEl) {
+            const state = nodeEl.getAttribute('data-dd-state');
+            if (ddSelectedNode === state) { closeDDDrawer(); return; }
+            ddSelectedNode = state;
+            document.querySelectorAll('.dd-node').forEach(n => {
+                n.classList.toggle('selected', n.getAttribute('data-dd-state') === state);
+                n.classList.toggle('dimmed', n.getAttribute('data-dd-state') !== state);
+            });
+            document.querySelectorAll('.dd-edge').forEach(e => e.classList.add('dimmed'));
+            const cpConfig = getProc().ddCrossingPoints;
+            if (cpConfig && cpConfig[state]) {
+                const cp = cpConfig[state];
+                document.getElementById('dd-drawer-title').textContent = cp.title;
+                document.getElementById('dd-drawer-badge').textContent = cp.badge;
+                document.getElementById('dd-drawer-meta').textContent = cp.meta;
+                document.getElementById('dd-drawer').classList.add('open');
+                document.getElementById('dd-scrim').classList.add('open');
             } else {
-                resSettings.classList.add('hidden');
+                closeDDDrawerOnly();
             }
         }
 
-        updateCycleTime();
-        toggleVariant('left', 0);
-        toggleVariant('right', 0);
+        function closeDDDrawer() {
+            document.getElementById('dd-drawer').classList.remove('open');
+            document.getElementById('dd-scrim').classList.remove('open');
+            document.querySelectorAll('.dd-node').forEach(n => n.classList.remove('dimmed', 'selected'));
+            document.querySelectorAll('.dd-edge').forEach(e => e.classList.remove('dimmed'));
+            ddSelectedNode = null;
+        }
+
+        function closeDDDrawerOnly() {
+            document.getElementById('dd-drawer').classList.remove('open');
+            document.getElementById('dd-scrim').classList.remove('open');
+        }
+
+        // Drawer drag-to-resize
+        (function() {
+            const handle = document.getElementById('dd-handle');
+            const panel = document.getElementById('dd-drawer');
+            if (!handle || !panel) return;
+            let dragging = false, startY = 0, startH = 0;
+            handle.addEventListener('mousedown', e => {
+                dragging = true; startY = e.clientY; startH = panel.offsetHeight;
+                document.body.style.cursor = 'ns-resize'; e.preventDefault();
+            });
+            document.addEventListener('mousemove', e => {
+                if (!dragging) return;
+                panel.style.height = Math.min(Math.max(startH + (startY - e.clientY), 180), window.innerHeight * 0.8) + 'px';
+            });
+            document.addEventListener('mouseup', () => { if (dragging) { dragging = false; document.body.style.cursor = ''; } });
+        })();
+
+        // =============================================
+        // INITIALIZATION
+        // =============================================
+        // Capture initial inbox-case SVGs from DOM before any switching
+        (function() {
+            const cpSvgEl = document.querySelector('#monitor-tab .joined-graph-container .p-6');
+            SVG_TEMPLATES['inbox-case'].cpSvg = cpSvgEl ? cpSvgEl.innerHTML : '';
+            // flatSvg is now rendered dynamically by renderFlatSvg()
+            SVG_TEMPLATES['inbox-case'].ddParentSvg = document.getElementById('dd-graph-container')?.innerHTML || '';
+            SVG_TEMPLATES['inbox-case'].ddChildHtml = document.getElementById('dd-drawer-body')?.innerHTML || '';
+        })();
+
+        // Initialize with inbox-case
+        switchProcess('inbox-case');
     </script>
 </body>
 </html>
