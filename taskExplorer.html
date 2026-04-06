@@ -482,6 +482,7 @@ body { font-family: 'Inter', sans-serif; background: var(--page-bg); color: var(
 
               <!-- Node 0: Draft -->
               <g class="graph-node-g" data-state-id="0" data-state-name="Draft"
+                 onclick="onNodeClick(0)"
                  onmouseenter="showStateCard(event, 0)"
                  onmouseleave="scheduleHideStateCard()">
                 <rect class="node-rect" x="30" y="58" width="165" height="60" rx="7" fill="white" stroke="#c8cdd6" stroke-width="1.5"/>
@@ -491,6 +492,7 @@ body { font-family: 'Inter', sans-serif; background: var(--page-bg); color: var(
 
               <!-- Node 1: In Review -->
               <g class="graph-node-g" data-state-id="1" data-state-name="In Review"
+                 onclick="onNodeClick(1)"
                  onmouseenter="showStateCard(event, 1)"
                  onmouseleave="scheduleHideStateCard()">
                 <rect class="node-rect" x="267" y="58" width="165" height="60" rx="7" fill="white" stroke="#c8cdd6" stroke-width="1.5"/>
@@ -500,6 +502,7 @@ body { font-family: 'Inter', sans-serif; background: var(--page-bg); color: var(
 
               <!-- Node 2: Pending HA Response -->
               <g class="graph-node-g" data-state-id="2" data-state-name="Pending HA Response"
+                 onclick="onNodeClick(2)"
                  onmouseenter="showStateCard(event, 2)"
                  onmouseleave="scheduleHideStateCard()">
                 <rect class="node-rect" x="504" y="58" width="165" height="60" rx="7" fill="white" stroke="#c8cdd6" stroke-width="1.5"/>
@@ -509,6 +512,7 @@ body { font-family: 'Inter', sans-serif; background: var(--page-bg); color: var(
 
               <!-- Node 3: Approved -->
               <g class="graph-node-g" data-state-id="3" data-state-name="Approved"
+                 onclick="onNodeClick(3)"
                  onmouseenter="showStateCard(event, 3)"
                  onmouseleave="scheduleHideStateCard()">
                 <rect class="node-rect" x="741" y="58" width="109" height="60" rx="7" fill="white" stroke="#c8cdd6" stroke-width="1.5"/>
@@ -831,6 +835,14 @@ function highlightCycleTimeNodes(start, end) {
     if (id === end && end !== start) { rect.style.stroke = '#cc4444'; rect.style.strokeWidth = '2.5px'; label.style.fill = '#cc4444'; }
     if (selectedNode === id) { rect.style.stroke = '#1453b8'; rect.style.strokeWidth = '2.5px'; label.style.fill = '#1453b8'; }
   });
+}
+
+// ─── Node click (opens drawer only if data already loaded) ──────────────────
+function onNodeClick(id) {
+  if (loadedStates.has(id)) {
+    hideStateCard();
+    selectNode(id);
+  }
 }
 
 // ─── Node selection ──────────────────────────────────────────────────────────
