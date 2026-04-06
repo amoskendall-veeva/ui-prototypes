@@ -184,6 +184,80 @@ body { font-family: 'Inter', sans-serif; background: var(--page-bg); color: var(
 .swimlane-lag-label { position: absolute; left: 2px; font-size: 8px; opacity: 0.65; white-space: nowrap; }
 .swimlane-freq-label { position: absolute; right: -32px; font-size: 10px; color: #aaa; white-space: nowrap; }
 
+/* Drawer view toggle controls */
+.drawer-view-controls { display: flex; align-items: center; gap: 6px; }
+.drawer-toggle-group {
+  display: inline-flex; border: 1px solid var(--border-color); border-radius: 5px; overflow: hidden;
+}
+.drawer-toggle-btn {
+  font-size: 10px; font-weight: 500; font-family: 'Inter', sans-serif;
+  padding: 3px 10px; border: none; background: white; color: #666;
+  cursor: pointer; transition: all 0.15s; white-space: nowrap;
+  border-right: 1px solid var(--border-color);
+}
+.drawer-toggle-btn:last-child { border-right: none; }
+.drawer-toggle-btn.active { background: var(--veeva-blue); color: white; }
+.drawer-toggle-btn:hover:not(.active) { background: #f0f4fb; }
+.drawer-divider { width: 1px; height: 18px; background: var(--border-color); margin: 0 4px; }
+.drawer-group-label { font-size: 9px; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: 0.3px; margin-right: 2px; }
+
+/* Horizontal bar chart */
+.bar-chart { width: 100%; }
+.bar-chart-axis { display: flex; align-items: center; padding-left: 110px; margin-bottom: 4px; padding-right: 50px; }
+.bar-chart-tick-labels { display: flex; flex: 1; justify-content: space-between; font-size: 9px; color: #aaa; }
+.bar-chart-row { display: flex; align-items: center; margin-bottom: 4px; }
+.bar-chart-label {
+  width: 100px; font-size: 11px; color: var(--text-main); text-align: right;
+  padding-right: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0;
+  font-weight: 500;
+}
+.bar-chart-track {
+  flex: 1; height: 26px; background: #f7f8fa; border-radius: 4px;
+  position: relative; overflow: visible;
+}
+.bar-chart-gridline { position: absolute; top: 0; bottom: 0; width: 1px; background: #ebebeb; pointer-events: none; }
+.bar-chart-bar {
+  position: absolute; top: 3px; height: 20px; border-radius: 4px;
+  display: flex; align-items: center; cursor: pointer; transition: filter 0.15s;
+  min-width: 6px;
+}
+.bar-chart-bar:hover { filter: brightness(0.9); }
+.bar-chart-bar-label {
+  font-size: 10px; font-weight: 600; white-space: nowrap; padding: 0 6px;
+}
+.bar-chart-count {
+  position: absolute; right: -44px; font-size: 10px; color: #888; white-space: nowrap;
+}
+
+/* Task list view */
+.task-list-table {
+  width: 100%; border-collapse: collapse; font-size: 12px;
+}
+.task-list-table th {
+  text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase;
+  color: #888; letter-spacing: 0.3px; padding: 6px 10px; border-bottom: 2px solid var(--border-color);
+  background: #fafbfc; position: sticky; top: 0; z-index: 1;
+  cursor: pointer; user-select: none;
+}
+.task-list-table th:hover { color: var(--veeva-blue); }
+.task-list-table th .sort-arrow { font-size: 8px; margin-left: 3px; opacity: 0.5; }
+.task-list-table th.sorted .sort-arrow { opacity: 1; color: var(--veeva-blue); }
+.task-list-table td {
+  padding: 6px 10px; border-bottom: 1px solid #f0f0f0; color: var(--text-main);
+}
+.task-list-table tr:hover td { background: #f8f9ff; }
+.task-list-type-badge {
+  display: inline-block; font-size: 10px; font-weight: 600; padding: 1px 7px;
+  border-radius: 10px; text-transform: capitalize;
+}
+.task-list-status {
+  display: inline-block; font-size: 10px; font-weight: 600; padding: 1px 7px;
+  border-radius: 10px;
+}
+.status-completed { background: #e1f5ee; color: #0f6e56; }
+.status-in-progress { background: #eef3fb; color: var(--veeva-blue); }
+.status-pending { background: #faeeda; color: #854f0b; }
+
 /* Tooltip */
 .swimlane-tooltip { position: fixed; background: white; border: 1px solid var(--border-color); border-radius: 6px; padding: 8px 12px; font-size: 11px; pointer-events: none; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.12); min-width: 160px; display: none; }
 .tt-name { font-weight: 600; margin-bottom: 4px; }
@@ -198,7 +272,7 @@ body { font-family: 'Inter', sans-serif; background: var(--page-bg); color: var(
   border-radius: 8px;
   padding: 0;
   font-size: 12px;
-  pointer-events: none;
+  pointer-events: auto;
   z-index: 100;
   box-shadow: 0 10px 25px rgba(0,0,0,0.15);
   width: 240px;
@@ -228,6 +302,23 @@ body { font-family: 'Inter', sans-serif; background: var(--page-bg); color: var(
   border-top: 1px solid #f0f0f0;
   font-size: 10px;
   color: #999;
+}
+.sh-load-btn {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  width: 100%; padding: 8px 14px; margin-top: 8px;
+  background: var(--veeva-blue); color: white; border: none; border-radius: 5px;
+  font-size: 11px; font-weight: 600; font-family: 'Inter', sans-serif;
+  cursor: pointer; transition: background 0.15s;
+}
+.sh-load-btn:hover { background: var(--veeva-blue-hover); }
+.sh-load-btn:disabled { background: #a0b4d4; cursor: default; }
+.sh-task-section { display: none; }
+.sh-task-section.visible { display: block; }
+@keyframes sh-spin { to { transform: rotate(360deg); } }
+.sh-spinner {
+  width: 12px; height: 12px; border: 2px solid rgba(255,255,255,0.35);
+  border-top-color: white; border-radius: 50%;
+  animation: sh-spin 0.6s linear infinite;
 }
 </style>
 </head>
@@ -390,40 +481,36 @@ body { font-family: 'Inter', sans-serif; background: var(--page-bg); color: var(
               <text x="500" y="178" text-anchor="middle" font-size="9" fill="#cc4444" font-family="Inter,sans-serif">60 rework</text>
 
               <!-- Node 0: Draft -->
-              <g class="graph-node-g" data-state-id="0" data-state-name="Draft" 
-                 onclick="selectNode(0)" 
-                 onmouseenter="showStateCard(event, 0)" 
-                 onmouseleave="hideStateCard()">
+              <g class="graph-node-g" data-state-id="0" data-state-name="Draft"
+                 onmouseenter="showStateCard(event, 0)"
+                 onmouseleave="scheduleHideStateCard()">
                 <rect class="node-rect" x="30" y="58" width="165" height="60" rx="7" fill="white" stroke="#c8cdd6" stroke-width="1.5"/>
                 <text class="node-label" x="112" y="83" text-anchor="middle" font-size="12" font-weight="600" fill="#1d1d1d" font-family="Inter,sans-serif">Draft</text>
                 <text x="112" y="100" text-anchor="middle" font-size="10" fill="#808080" font-family="Inter,sans-serif">214 records · 4.1d avg</text>
               </g>
 
               <!-- Node 1: In Review -->
-              <g class="graph-node-g" data-state-id="1" data-state-name="In Review" 
-                 onclick="selectNode(1)" 
-                 onmouseenter="showStateCard(event, 1)" 
-                 onmouseleave="hideStateCard()">
+              <g class="graph-node-g" data-state-id="1" data-state-name="In Review"
+                 onmouseenter="showStateCard(event, 1)"
+                 onmouseleave="scheduleHideStateCard()">
                 <rect class="node-rect" x="267" y="58" width="165" height="60" rx="7" fill="white" stroke="#c8cdd6" stroke-width="1.5"/>
                 <text class="node-label" x="349" y="83" text-anchor="middle" font-size="12" font-weight="600" fill="#1d1d1d" font-family="Inter,sans-serif">In Review</text>
                 <text x="349" y="100" text-anchor="middle" font-size="10" fill="#808080" font-family="Inter,sans-serif">214 records · 12.6d avg</text>
               </g>
 
               <!-- Node 2: Pending HA Response -->
-              <g class="graph-node-g" data-state-id="2" data-state-name="Pending HA Response" 
-                 onclick="selectNode(2)" 
-                 onmouseenter="showStateCard(event, 2)" 
-                 onmouseleave="hideStateCard()">
+              <g class="graph-node-g" data-state-id="2" data-state-name="Pending HA Response"
+                 onmouseenter="showStateCard(event, 2)"
+                 onmouseleave="scheduleHideStateCard()">
                 <rect class="node-rect" x="504" y="58" width="165" height="60" rx="7" fill="white" stroke="#c8cdd6" stroke-width="1.5"/>
                 <text class="node-label" x="586" y="83" text-anchor="middle" font-size="12" font-weight="600" fill="#1d1d1d" font-family="Inter,sans-serif">Pending HA Response</text>
                 <text x="586" y="100" text-anchor="middle" font-size="10" fill="#808080" font-family="Inter,sans-serif">198 records · 8.4d avg</text>
               </g>
 
               <!-- Node 3: Approved -->
-              <g class="graph-node-g" data-state-id="3" data-state-name="Approved" 
-                 onclick="selectNode(3)" 
-                 onmouseenter="showStateCard(event, 3)" 
-                 onmouseleave="hideStateCard()">
+              <g class="graph-node-g" data-state-id="3" data-state-name="Approved"
+                 onmouseenter="showStateCard(event, 3)"
+                 onmouseleave="scheduleHideStateCard()">
                 <rect class="node-rect" x="741" y="58" width="109" height="60" rx="7" fill="white" stroke="#c8cdd6" stroke-width="1.5"/>
                 <text class="node-label" x="795" y="83" text-anchor="middle" font-size="12" font-weight="600" fill="#1d1d1d" font-family="Inter,sans-serif">Approved</text>
                 <text x="795" y="100" text-anchor="middle" font-size="10" fill="#808080" font-family="Inter,sans-serif">198 · 1.2d avg</text>
@@ -469,6 +556,20 @@ body { font-family: 'Inter', sans-serif; background: var(--page-bg); color: var(
             <div class="task-panel-title">Task breakdown</div>
             <div class="task-panel-state" id="panel-state-label"></div>
             <div class="task-panel-meta" id="panel-state-meta"></div>
+            <div style="flex:1"></div>
+            <div class="drawer-view-controls">
+              <span class="drawer-group-label">Group by</span>
+              <div class="drawer-toggle-group" id="group-toggle">
+                <button class="drawer-toggle-btn active" data-group="user" onclick="setGroupBy('user')">User</button>
+                <button class="drawer-toggle-btn" data-group="type" onclick="setGroupBy('type')">Task Type</button>
+              </div>
+              <div class="drawer-divider"></div>
+              <span class="drawer-group-label">View</span>
+              <div class="drawer-toggle-group" id="view-toggle">
+                <button class="drawer-toggle-btn active" data-view="chart" onclick="setViewMode('chart')">Chart</button>
+                <button class="drawer-toggle-btn" data-view="list" onclick="setViewMode('list')">List</button>
+              </div>
+            </div>
             <button class="task-panel-close" onclick="closePanel()">✕</button>
           </div>
           <div class="task-panel-body" id="task-panel-body"></div>
@@ -516,6 +617,56 @@ const STATE_TASKS = {
   }
 };
 
+// Individual task records for bar chart / list views
+const STATE_TASK_RECORDS = {
+  0: [
+    { id: 1, taskName:"Initial Assign", type:"assign", user:"Sarah Chen",     dur:0.2, startDate:"2025-12-01", status:"Completed" },
+    { id: 2, taskName:"Author",         type:"review", user:"Sarah Chen",     dur:4.1, startDate:"2025-12-01", status:"Completed" },
+    { id: 3, taskName:"Peer Review",    type:"review", user:"James Liu",      dur:1.0, startDate:"2025-12-05", status:"Completed" },
+    { id: 4, taskName:"Initial Assign", type:"assign", user:"Maria Garcia",   dur:0.3, startDate:"2025-12-03", status:"Completed" },
+    { id: 5, taskName:"Author",         type:"review", user:"Maria Garcia",   dur:3.8, startDate:"2025-12-03", status:"Completed" },
+    { id: 6, taskName:"Initial Assign", type:"assign", user:"David Park",     dur:0.4, startDate:"2025-12-06", status:"Completed" },
+    { id: 7, taskName:"Author",         type:"review", user:"David Park",     dur:2.9, startDate:"2025-12-06", status:"Completed" },
+    { id: 8, taskName:"Peer Review",    type:"review", user:"Sarah Chen",     dur:1.5, startDate:"2025-12-09", status:"Completed" },
+    { id: 9, taskName:"Initial Assign", type:"assign", user:"Emily Wright",   dur:0.2, startDate:"2025-12-10", status:"Completed" },
+    { id:10, taskName:"Author",         type:"review", user:"Emily Wright",   dur:5.2, startDate:"2025-12-10", status:"In Progress" },
+    { id:11, taskName:"Peer Review",    type:"review", user:"Maria Garcia",   dur:0.8, startDate:"2025-12-15", status:"Completed" },
+    { id:12, taskName:"Author",         type:"review", user:"James Liu",      dur:3.2, startDate:"2025-12-12", status:"Completed" },
+  ],
+  1: [
+    { id:13, taskName:"Initial Assign", type:"assign",  user:"Rachel Adams",  dur:0.5, startDate:"2025-12-08", status:"Completed" },
+    { id:14, taskName:"Review",         type:"review",  user:"Rachel Adams",  dur:8.2, startDate:"2025-12-08", status:"Completed" },
+    { id:15, taskName:"Approve",        type:"approve", user:"Michael Torres", dur:1.2, startDate:"2025-12-16", status:"Completed" },
+    { id:16, taskName:"Initial Assign", type:"assign",  user:"Sarah Chen",    dur:0.3, startDate:"2025-12-10", status:"Completed" },
+    { id:17, taskName:"Review",         type:"review",  user:"Sarah Chen",    dur:6.5, startDate:"2025-12-10", status:"Completed" },
+    { id:18, taskName:"Approve",        type:"approve", user:"Michael Torres", dur:2.1, startDate:"2025-12-17", status:"Completed" },
+    { id:19, taskName:"Review",         type:"review",  user:"James Liu",     dur:7.8, startDate:"2025-12-11", status:"In Progress" },
+    { id:20, taskName:"Initial Assign", type:"assign",  user:"Emily Wright",  dur:0.6, startDate:"2025-12-13", status:"Completed" },
+    { id:21, taskName:"Review",         type:"review",  user:"Emily Wright",  dur:5.4, startDate:"2025-12-13", status:"Completed" },
+    { id:22, taskName:"Approve",        type:"approve", user:"David Park",    dur:1.8, startDate:"2025-12-19", status:"Pending" },
+    { id:23, taskName:"Escalate",       type:"escalate",user:"Rachel Adams",  dur:2.4, startDate:"2025-12-20", status:"Completed" },
+    { id:24, taskName:"Review",         type:"review",  user:"Maria Garcia",  dur:9.1, startDate:"2025-12-09", status:"Completed" },
+  ],
+  2: [
+    { id:25, taskName:"Receive",        type:"assign",  user:"David Park",    dur:0.4, startDate:"2025-12-18", status:"Completed" },
+    { id:26, taskName:"Draft Response", type:"review",  user:"David Park",    dur:5.1, startDate:"2025-12-18", status:"Completed" },
+    { id:27, taskName:"Submit Answer",  type:"approve", user:"Michael Torres", dur:0.7, startDate:"2025-12-23", status:"Completed" },
+    { id:28, taskName:"Receive",        type:"assign",  user:"Sarah Chen",    dur:0.5, startDate:"2025-12-19", status:"Completed" },
+    { id:29, taskName:"Draft Response", type:"review",  user:"Sarah Chen",    dur:3.8, startDate:"2025-12-19", status:"Completed" },
+    { id:30, taskName:"Submit Answer",  type:"approve", user:"Rachel Adams",  dur:0.9, startDate:"2025-12-23", status:"Completed" },
+    { id:31, taskName:"Receive",        type:"assign",  user:"Emily Wright",  dur:0.6, startDate:"2025-12-20", status:"Completed" },
+    { id:32, taskName:"Draft Response", type:"review",  user:"Emily Wright",  dur:4.2, startDate:"2025-12-20", status:"In Progress" },
+    { id:33, taskName:"Receive",        type:"assign",  user:"James Liu",     dur:0.3, startDate:"2025-12-21", status:"Completed" },
+    { id:34, taskName:"Draft Response", type:"review",  user:"James Liu",     dur:5.8, startDate:"2025-12-21", status:"Completed" },
+    { id:35, taskName:"Submit Answer",  type:"approve", user:"Michael Torres", dur:1.0, startDate:"2025-12-27", status:"Pending" },
+  ],
+  3: [
+    { id:36, taskName:"Sign-off", type:"approve", user:"Michael Torres", dur:0.4, startDate:"2025-12-28", status:"Completed" },
+    { id:37, taskName:"Sign-off", type:"approve", user:"Michael Torres", dur:0.6, startDate:"2025-12-29", status:"Completed" },
+    { id:38, taskName:"Sign-off", type:"approve", user:"David Park",     dur:0.5, startDate:"2025-12-30", status:"Pending" },
+  ]
+};
+
 const METRICS = {
   "0-3": { avg:"26.3", med:"22.0", p90:"41.5" },
   "0-0": { 
@@ -544,15 +695,29 @@ const METRICS = {
 // ─── State ───────────────────────────────────────────────────────────────────
 let selectedNode = null;
 let zoomLevel = 100;
+let drawerViewMode = 'chart';   // 'chart' | 'list'
+let drawerGroupBy  = 'user';    // 'user' | 'type'
+let listSortCol    = 'user';
+let listSortAsc    = true;
 
 // ─── State Hovercard ─────────────────────────────────────────────────────────
+let hovercardTimeout = null;
+let hovercardStateId = null;
+let hovercardPinned  = false;      // true while loading / after load
+const loadedStates = new Set();    // track which states have been "fetched"
+
 function showStateCard(e, id) {
+  clearTimeout(hovercardTimeout);
+  hovercardStateId = id;
   const card = document.getElementById('state-hovercard');
   const data = STATE_TASKS[id];
   const m = METRICS[`${id}-${id}`];
   const count = id < 2 ? 214 : 198;
+  const alreadyLoaded = loadedStates.has(id);
 
   card.style.display = 'block';
+  hovercardPinned = false;
+
   card.innerHTML = `
     <div class="sh-header">${data.name}</div>
     <div class="sh-body">
@@ -560,24 +725,80 @@ function showStateCard(e, id) {
       <div class="sh-metric-row"><div class="sh-label">Avg Cycle Time</div><div class="sh-value">${m.avg}<span>days</span></div></div>
       <div class="sh-metric-row"><div class="sh-label">Median</div><div class="sh-value">${m.med}<span>days</span></div></div>
       <div class="sh-metric-row"><div class="sh-label">Volume</div><div class="sh-value">${count}<span>records</span></div></div>
-      
-      <div class="sh-section-title">Task & Workflow Data</div>
-      <div class="sh-metric-row"><div class="sh-label">Avg # Tasks</div><div class="sh-value">${m.avgTasks}</div></div>
-      <div class="sh-metric-row"><div class="sh-label">Unique Workflows</div><div class="sh-value">${m.workflows}</div></div>
-      <div class="sh-metric-row"><div class="sh-label">Longest Task</div><div class="sh-value text">${m.longest}</div></div>
-      <div class="sh-metric-row"><div class="sh-label">Most Freq Task</div><div class="sh-value text">${m.freqTask}</div></div>
-      <div class="sh-metric-row"><div class="sh-label">Most Freq Workflow</div><div class="sh-value text">${m.freqWorkflow}</div></div>
+
+      <div class="sh-task-section ${alreadyLoaded ? 'visible' : ''}" id="sh-task-section">
+        <div class="sh-section-title">Task & Workflow Data</div>
+        <div class="sh-metric-row"><div class="sh-label">Avg # Tasks</div><div class="sh-value">${m.avgTasks}</div></div>
+        <div class="sh-metric-row"><div class="sh-label">Unique Workflows</div><div class="sh-value">${m.workflows}</div></div>
+        <div class="sh-metric-row"><div class="sh-label">Longest Task</div><div class="sh-value text">${m.longest}</div></div>
+        <div class="sh-metric-row"><div class="sh-label">Most Freq Task</div><div class="sh-value text">${m.freqTask}</div></div>
+        <div class="sh-metric-row"><div class="sh-label">Most Freq Workflow</div><div class="sh-value text">${m.freqWorkflow}</div></div>
+      </div>
+
+      ${alreadyLoaded
+        ? ''
+        : `<button class="sh-load-btn" id="sh-load-btn" onclick="loadTaskData(${id})">View task breakdown</button>`
+      }
     </div>
     <div class="sh-footer">Process: Submission Review</div>
   `;
-  moveStateCard(e);
+
+  // Position near the node
+  positionStateCard(e);
+
+  // Keep card alive when hovering it
+  card.onmouseenter = () => clearTimeout(hovercardTimeout);
+  card.onmouseleave = () => { if (!hovercardPinned) scheduleHideStateCard(); };
 }
-function moveStateCard(e) {
+
+function positionStateCard(e) {
   const card = document.getElementById('state-hovercard');
   card.style.left = (e.clientX + 16) + 'px';
   card.style.top  = (e.clientY - 40) + 'px';
 }
-function hideStateCard() { document.getElementById('state-hovercard').style.display = 'none'; }
+
+function scheduleHideStateCard() {
+  clearTimeout(hovercardTimeout);
+  if (hovercardPinned) return;
+  hovercardTimeout = setTimeout(() => {
+    document.getElementById('state-hovercard').style.display = 'none';
+  }, 200);
+}
+
+function hideStateCard() {
+  clearTimeout(hovercardTimeout);
+  hovercardPinned = false;
+  document.getElementById('state-hovercard').style.display = 'none';
+}
+
+function loadTaskData(id) {
+  const btn = document.getElementById('sh-load-btn');
+  if (!btn) return;
+  hovercardPinned = true;
+
+  // Show loading state
+  btn.disabled = true;
+  btn.innerHTML = `<div class="sh-spinner"></div> Loading task data…`;
+
+  // Simulate network delay
+  setTimeout(() => {
+    loadedStates.add(id);
+
+    // Reveal the task section
+    const section = document.getElementById('sh-task-section');
+    if (section) section.classList.add('visible');
+
+    // Remove the button
+    btn.remove();
+    hovercardPinned = false;
+
+    // Open the drawer
+    selectNode(id);
+
+    // Hide hovercard after a brief moment (drawer is now open)
+    setTimeout(() => hideStateCard(), 400);
+  }, 900);
+}
 
 // ─── Zoom ────────────────────────────────────────────────────────────────────
 function adjustZoom(delta) {
@@ -664,66 +885,160 @@ function closePanel() {
   updateMetrics();
 }
 
+// ─── Toggle handlers ─────────────────────────────────────────────────────────
+function setGroupBy(mode) {
+  drawerGroupBy = mode;
+  document.querySelectorAll('#group-toggle .drawer-toggle-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.group === mode));
+  renderPanel();
+}
+function setViewMode(mode) {
+  drawerViewMode = mode;
+  document.querySelectorAll('#view-toggle .drawer-toggle-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.view === mode));
+  // Show/hide group-by toggle (only relevant for chart)
+  document.getElementById('group-toggle').style.display = mode === 'chart' ? '' : 'none';
+  document.querySelector('#group-toggle').previousElementSibling.style.display = mode === 'chart' ? '' : 'none';
+  // Also hide the divider before "View"
+  renderPanel();
+}
+
 function renderPanel() {
   if (selectedNode === null) return;
   const body = document.getElementById('task-panel-body');
-  renderSwimlane(body);
+  if (drawerViewMode === 'chart') {
+    renderBarChart(body);
+  } else {
+    renderTaskList(body);
+  }
 }
 
-// ─── Swimlane renderer ───────────────────────────────────────────────────────
-function renderSwimlane(container) {
-  const tasks = [...STATE_TASKS[selectedNode].swimlane].sort((a,b) => a.lag - b.lag);
-  const maxTime = Math.max(...tasks.map(t => t.lag + t.dur)) * 1.08;
+// ─── Bar chart renderer ─────────────────────────────────────────────────────
+function renderBarChart(container) {
+  const records = STATE_TASK_RECORDS[selectedNode] || [];
   const TICK_COUNT = 5;
 
-  let html = `<div class="swimlane-chart">`;
+  // Aggregate: sum duration per group key
+  const groups = {};
+  records.forEach(r => {
+    const key = drawerGroupBy === 'user' ? r.user : r.type;
+    if (!groups[key]) groups[key] = { totalDur: 0, count: 0, type: r.type };
+    groups[key].totalDur += r.dur;
+    groups[key].count += 1;
+  });
 
-  // Axis row
-  html += `<div class="swimlane-axis-row"><div class="swimlane-tick-labels">`;
+  // Sort descending by total duration
+  const sorted = Object.entries(groups)
+    .map(([key, v]) => ({ key, totalDur: v.totalDur, count: v.count, type: v.type }))
+    .sort((a, b) => b.totalDur - a.totalDur);
+
+  const maxDur = sorted.length ? sorted[0].totalDur * 1.12 : 1;
+
+  let html = `<div class="bar-chart">`;
+
+  // Axis
+  html += `<div class="bar-chart-axis"><div class="bar-chart-tick-labels">`;
   for (let i = 0; i <= TICK_COUNT; i++) {
-    const v = (maxTime * i / TICK_COUNT);
-    html += `<span>${v < 1 ? v.toFixed(1) : Math.round(v)}d</span>`;
+    const v = (maxDur * i / TICK_COUNT);
+    html += `<span>${v < 1 ? v.toFixed(1) : v.toFixed(1)}d</span>`;
   }
   html += `</div></div>`;
 
-  tasks.forEach(task => {
-    const leftPct = (task.lag / maxTime) * 100;
-    const widthPct = Math.max(1.5, (task.dur / maxTime) * 100);
-    const opacityVal = 0.18 + task.freq * 0.82;
+  sorted.forEach(row => {
+    const widthPct = Math.max(1, (row.totalDur / maxDur) * 100);
+    const t = Math.min(row.totalDur / maxDur, 1);
 
-    // Colorscale based on frequency
-    const fillColor = interpColor("#eef3fb", "#1453b8", task.freq);
-    const borderColor = interpColor("#c8cdd6", "#0f4092", task.freq);
-    const textColor = task.freq > 0.55 ? "#ffffff" : "#1d1d1d";
-    const inside = widthPct > 12;
-
-    html += `<div class="swimlane-row">
-      <div class="swimlane-label">${task.name}</div>
-      <div class="swimlane-track" id="track-${task.name.replace(/\s/g,'_')}">`;
-
-    // Gridlines
-    for (let i = 1; i < TICK_COUNT; i++) {
-      html += `<div class="swimlane-gridline" style="left:${(i/TICK_COUNT)*100}%"></div>`;
-    }
-
-    html += `<div class="swimlane-bar"
-        style="left:${leftPct}%;width:${widthPct}%;background:${fillColor};border:1px solid ${borderColor};opacity:${opacityVal}"
-        onmouseenter="showTip(event,'${task.name}',${task.dur},${task.lag},${task.freq},'${task.type}')"
-        onmouseleave="hideTip()">`;
-
-    if (inside) {
-      html += `<span class="swimlane-lag-label" style="color:${textColor}">+${task.lag}d</span>
-               <span class="swimlane-dur-label" style="color:${textColor};margin-left:auto">${task.dur}d</span>`;
+    let fillColor, borderColor;
+    if (drawerGroupBy === 'type') {
+      fillColor = `var(--task-${row.key}-fill, #eef3fb)`;
+      borderColor = `var(--task-${row.key}-stroke, #c8cdd6)`;
     } else {
-      html += `<span class="swimlane-dur-label" style="color:#1d1d1d;position:absolute;left:calc(100% + 4px);font-size:9px">${task.dur}d</span>`;
+      fillColor = interpColor("#eef3fb", "#1453b8", t);
+      borderColor = interpColor("#c8cdd6", "#0f4092", t);
+    }
+    const textColor = (drawerGroupBy !== 'type' && t > 0.55) ? "#fff" : "#1d1d1d";
+    const label = drawerGroupBy === 'type' ? row.key.charAt(0).toUpperCase() + row.key.slice(1) : row.key;
+    const inside = widthPct > 18;
+
+    html += `<div class="bar-chart-row">
+      <div class="bar-chart-label" title="${label}">${label}</div>
+      <div class="bar-chart-track">`;
+
+    for (let i = 1; i < TICK_COUNT; i++) {
+      html += `<div class="bar-chart-gridline" style="left:${(i/TICK_COUNT)*100}%"></div>`;
     }
 
+    html += `<div class="bar-chart-bar" style="left:0;width:${widthPct}%;background:${fillColor};border:1px solid ${borderColor}">`;
+    if (inside) {
+      html += `<span class="bar-chart-bar-label" style="color:${textColor}">${row.totalDur.toFixed(1)}d</span>`;
+    } else {
+      html += `<span class="bar-chart-bar-label" style="color:#1d1d1d;position:absolute;left:calc(100% + 4px);font-size:10px">${row.totalDur.toFixed(1)}d</span>`;
+    }
     html += `</div>`;
-    html += `<span class="swimlane-freq-label">${Math.round(task.freq*100)}%</span>`;
+    html += `<span class="bar-chart-count">${row.count} tasks</span>`;
     html += `</div></div>`;
   });
 
   html += `</div>`;
+  container.innerHTML = html;
+}
+
+// ─── Task list renderer ─────────────────────────────────────────────────────
+function sortTaskList(col) {
+  if (listSortCol === col) { listSortAsc = !listSortAsc; }
+  else { listSortCol = col; listSortAsc = true; }
+  renderPanel();
+}
+
+function renderTaskList(container) {
+  const records = [...(STATE_TASK_RECORDS[selectedNode] || [])];
+
+  // Sort
+  records.sort((a, b) => {
+    let va = a[listSortCol], vb = b[listSortCol];
+    if (typeof va === 'string') va = va.toLowerCase();
+    if (typeof vb === 'string') vb = vb.toLowerCase();
+    if (va < vb) return listSortAsc ? -1 : 1;
+    if (va > vb) return listSortAsc ? 1 : -1;
+    return 0;
+  });
+
+  const cols = [
+    { key: 'user',      label: 'User' },
+    { key: 'taskName',  label: 'Task' },
+    { key: 'type',      label: 'Type' },
+    { key: 'dur',       label: 'Duration' },
+    { key: 'startDate', label: 'Start Date' },
+    { key: 'status',    label: 'Status' },
+  ];
+
+  const arrow = (col) => listSortCol === col
+    ? (listSortAsc ? ' &#9650;' : ' &#9660;')
+    : ' <span style="opacity:0.3">&#9650;</span>';
+
+  let html = `<table class="task-list-table"><thead><tr>`;
+  cols.forEach(c => {
+    const cls = listSortCol === c.key ? ' class="sorted"' : '';
+    html += `<th${cls} onclick="sortTaskList('${c.key}')">${c.label}<span class="sort-arrow">${arrow(c.key)}</span></th>`;
+  });
+  html += `</tr></thead><tbody>`;
+
+  records.forEach(r => {
+    const typeFill = `var(--task-${r.type}-fill, #f0f0f0)`;
+    const typeStroke = `var(--task-${r.type}-stroke, #888)`;
+    const statusCls = r.status === 'Completed' ? 'status-completed' :
+                      r.status === 'In Progress' ? 'status-in-progress' : 'status-pending';
+    html += `<tr>
+      <td style="font-weight:500">${r.user}</td>
+      <td>${r.taskName}</td>
+      <td><span class="task-list-type-badge" style="background:${typeFill};color:${typeStroke}">${r.type}</span></td>
+      <td style="font-weight:600">${r.dur}d</td>
+      <td>${r.startDate}</td>
+      <td><span class="task-list-status ${statusCls}">${r.status}</span></td>
+    </tr>`;
+  });
+
+  html += `</tbody></table>`;
   container.innerHTML = html;
 }
 
