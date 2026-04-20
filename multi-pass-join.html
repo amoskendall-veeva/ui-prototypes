@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Multi-Pass Handoff Prototype</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/dagre@0.8.5/dist/dagre.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -310,15 +311,15 @@
         /* Flattened view process color coding */
         .flat-process-inbox rect { fill: #eef3fb; stroke: #7ba4de; }
         .flat-process-inbox text.node-name { fill: #1453b8; }
-        .flat-process-case rect { fill: #e8f5e9; stroke: #81c784; }
-        .flat-process-case text.node-name { fill: #2e7d32; }
+        .flat-process-case rect { fill: #f3e8ff; stroke: #c084fc; }
+        .flat-process-case text.node-name { fill: #7c3aed; }
         .flat-process-crossing rect { fill: var(--node-join-bg); stroke: var(--node-join-stroke); }
         .flat-process-crossing text.node-name { fill: #b06c00; }
         /* Reuse inbox/case colors for dev/capa (same blue/green scheme) */
         .flat-process-dev rect { fill: #eef3fb; stroke: #7ba4de; }
         .flat-process-dev text.node-name { fill: #1453b8; }
-        .flat-process-capa rect { fill: #e8f5e9; stroke: #81c784; }
-        .flat-process-capa text.node-name { fill: #2e7d32; }
+        .flat-process-capa rect { fill: #f3e8ff; stroke: #c084fc; }
+        .flat-process-capa text.node-name { fill: #7c3aed; }
     </style>
 </head>
 <body class="flex flex-col h-screen">
@@ -348,8 +349,9 @@
         <div class="h-[40px] bg-[#f8f8f8] flex items-end justify-between px-4 border-b border-[#e5e7eb]">
             <div class="flex h-full items-end" id="main-tabs">
                 <div class="tab-btn active h-full flex items-center" onclick="switchTab('admin-tab')">Admin</div>
-                <div class="tab-btn h-full flex items-center" onclick="switchTab('monitor-tab')">Crossing Point View</div>
+                <div class="tab-btn h-full flex items-center" onclick="switchTab('monitor-tab')">Two-Process View</div>
                 <div class="tab-btn h-full flex items-center" onclick="switchTab('flat-tab')">Flattened View</div>
+                <div class="tab-btn h-full flex items-center" onclick="switchTab('swimlane-tab')">Swimlane View</div>
                 <div class="tab-btn h-full flex items-center" onclick="switchTab('drilldown-tab')">Drill-Down View</div>
             </div>
             <div class="mb-1">
@@ -417,14 +419,6 @@
                                 <option>Last Completed</option>
                             </select>
                         </div>
-                        <div class="flex flex-col gap-2">
-                            <label class="text-[12px] font-bold text-gray-700 uppercase">Crossing Point</label>
-                            <div class="flex items-center gap-4">
-                                <select class="border border-gray-300 rounded px-3 py-2 text-[13px] w-[300px]"><option>Inbox Item - Completed</option></select>
-                                <div class="text-gray-400 font-bold">+</div>
-                                <select class="border border-gray-300 rounded px-3 py-2 text-[13px] w-[300px]"><option>Case - Created</option></select>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -436,7 +430,7 @@
             <div class="bg-white border-b flex-shrink-0">
                 <div class="flex items-center justify-between px-4 py-2">
                     <div class="flex flex-col">
-                        <div class="text-[11px] text-[var(--veeva-blue)] uppercase font-semibold">Crossing Point View</div>
+                        <div class="text-[11px] text-[var(--veeva-blue)] uppercase font-semibold">Two-Process View</div>
                         <h2 class="text-[18px] font-normal text-[var(--text-main)]" id="monitor-title">Inbox Item → Case Process</h2>
                     </div>
                     <div class="flex items-center gap-2">
@@ -555,7 +549,7 @@
                                     <div class="text-[10px] uppercase font-bold text-gray-500 tracking-wider w-[150px] text-center">Handoff</div>
                                     <div class="text-[10px] uppercase font-bold text-gray-500 tracking-wider flex-1 text-center border-l">Case Process</div>
                                 </div>
-                                <div class="p-6">
+                                <div class="p-6" id="cp-svg-container">
                                     <svg width="910" height="540" viewBox="0 0 910 540" id="main-svg">
                                         <defs>
                                             <marker id="ah-gray" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#999"/></marker>
@@ -844,6 +838,97 @@
         </div>
 
         <!-- Drill-Down View Tab -->
+        <!-- Swimlane View Tab -->
+        <div id="swimlane-tab" class="flex-1 flex flex-col hidden w-full overflow-hidden">
+            <div class="bg-white border-b flex-shrink-0">
+                <div class="flex items-center justify-between px-4 py-2">
+                    <div class="flex flex-col">
+                        <div class="text-[11px] text-[var(--veeva-blue)] uppercase font-semibold">Swimlane View</div>
+                        <h2 class="text-[18px] font-normal text-[var(--text-main)]" id="swim-title">End-to-End Process: Inbox Item → Case</h2>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button class="border border-gray-300 bg-white text-[13px] px-3 py-1 rounded cursor-pointer">Save</button>
+                        <button class="btn-primary text-[13px] px-4 py-1">Run</button>
+                    </div>
+                </div>
+            </div>
+            <div class="flex-1 flex overflow-hidden">
+                <div class="w-[220px] bg-[#f8f8f8] border-r border-[#eee] flex flex-col overflow-y-auto flex-shrink-0 pt-4">
+                    <div class="px-4 flex flex-col gap-5">
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[11px] font-bold text-gray-700 uppercase">Process</label>
+                            <select id="swim-process-select" class="border border-gray-300 rounded px-2 py-1.5 text-[13px]" onchange="switchProcess(this.value)">
+                                <option value="inbox-case">Inbox Item → Case</option>
+                                <option value="dev-capa">Deviations with CAPA</option>
+                            </select>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[11px] font-bold text-gray-700 uppercase">Cycle Time Start</label>
+                            <select id="swim-ct-start" class="border border-gray-300 rounded px-2 py-1.5 text-[13px]" onchange="updateSwimMetrics()"></select>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[11px] font-bold text-gray-700 uppercase">Cycle Time End</label>
+                            <select id="swim-ct-end" class="border border-gray-300 rounded px-2 py-1.5 text-[13px]" onchange="updateSwimMetrics()"></select>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[11px] font-bold text-gray-700 uppercase">Timeframe</label>
+                            <select class="border border-gray-300 rounded px-2 py-1.5 text-[13px]"><option>Last 3 months</option></select>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex-1 flex flex-col bg-[#fafafa] overflow-hidden pt-4">
+                    <div class="px-6 flex-shrink-0">
+                        <div class="metrics-bar">
+                            <div class="metrics-group">
+                                <div class="metrics-group-header">Cycle Time (Days)</div>
+                                <div class="metrics-group-body">
+                                    <div class="metric-cell"><div class="metric-label">Avg</div><div class="metric-value" id="swim-avg-metric">26.8</div></div>
+                                    <div class="metric-cell"><div class="metric-label">Med</div><div class="metric-value" id="swim-med-metric">22.8</div></div>
+                                </div>
+                            </div>
+                            <div class="metrics-group">
+                                <div class="metrics-group-header">Volume</div>
+                                <div class="metrics-group-body">
+                                    <div class="metric-cell"><div class="metric-label">Start</div><div class="metric-value">87</div></div>
+                                    <div class="metric-cell"><div class="metric-label">End</div><div class="metric-value">87</div></div>
+                                </div>
+                            </div>
+                            <div class="metrics-group">
+                                <div class="metrics-group-header">Variants</div>
+                                <div class="metrics-group-body">
+                                    <div class="metric-cell"><div class="metric-label">Count</div><div class="metric-value">4</div></div>
+                                    <div class="metric-cell"><div class="metric-label">Dominant</div><div class="metric-value">V1</div></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="px-6 mt-4 border-b border-[var(--border-color)] bg-white flex-shrink-0">
+                        <div class="flex">
+                            <div class="section-tab">Overview</div>
+                            <div class="section-tab active">Process Graph</div>
+                            <div class="section-tab">Records</div>
+                        </div>
+                    </div>
+                    <div class="h-[36px] bg-[var(--tp-bar-bg)] border-b border-[var(--border-color)] flex items-center px-6 flex-shrink-0">
+                    </div>
+                    <div class="flex-1 p-6 overflow-auto" id="swim-graph-outer">
+                      <div class="flex items-start gap-4">
+                        <!-- Variant Panel -->
+                        <div class="variant-panel self-start">
+                            <div class="variant-panel-header px-4 pt-3 text-[13px]">End-to-End Variants</div>
+                            <div class="variant-panel-subtitle px-4 pb-2 text-[11px] text-gray-500">Filter by variant path</div>
+                            <div class="pb-2 border-t mt-1" id="swim-variants"></div>
+                        </div>
+
+                        <div class="self-start flex-shrink-0 border border-[var(--border-color)] rounded bg-white" id="swim-graph-container">
+                        <!-- Rendered dynamically by renderSwimlaneSvg() -->
+                        </div>
+                      </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div id="drilldown-tab" class="flex-1 flex flex-col hidden w-full overflow-hidden">
             <div class="bg-white border-b flex-shrink-0">
                 <div class="flex items-center justify-between px-4 py-2">
@@ -872,9 +957,9 @@
                             <select class="border border-gray-300 rounded px-2 py-1.5 text-[13px]"><option>Last 3 months</option></select>
                         </div>
                         <div class="border-t border-[#eee] pt-4 mt-1" id="dd-cp-info">
-                            <div class="text-[10px] uppercase font-bold text-gray-500 mb-2">Crossing Points</div>
+                            <div class="text-[10px] uppercase font-bold text-gray-500 mb-2">Child Processes</div>
                             <div id="dd-cp-cards"></div>
-                            <div class="text-[10px] text-gray-400 mt-2" id="dd-cp-hint">Click a crossing point state to drill into the child process.</div>
+                            <div class="text-[10px] text-gray-400 mt-2" id="dd-cp-hint">Click a highlighted state to drill into the child process.</div>
                         </div>
                     </div>
                 </div>
@@ -978,7 +1063,7 @@
                             <div class="drawer-header">
                                 <div class="drawer-title" id="dd-drawer-title">Case Process</div>
                                 <div class="drawer-badge" id="dd-drawer-badge">Child Process</div>
-                                <div class="drawer-meta" id="dd-drawer-meta">87 records | via Crossing Point</div>
+                                <div class="drawer-meta" id="dd-drawer-meta">87 records</div>
                                 <button class="drawer-close" onclick="closeDDDrawer()">✕</button>
                             </div>
                             <div class="drawer-body" id="dd-drawer-body">
@@ -1096,7 +1181,6 @@
                     { label: '[Inbox] In Review', days: 3.5 },
                     { label: '[Inbox] Approved', days: 1.1 },
                     { label: '[Inbox] Completed', days: 0.8 },
-                    { label: 'CROSSING POINT', days: 0.2 },
                     { label: '[Case] Created', days: 0.5 },
                     { label: '[Case] Assessment', days: 3.2 },
                     { label: '[Case] Investigation', days: 4.8 },
@@ -1104,7 +1188,7 @@
                     { label: '[Case] Pending Approval', days: 1.5 },
                     { label: '[Case] Closed', days: 5.2 }
                 ],
-                flatStateMap: { 'f0':0,'f1':1,'f2':2,'f3':3,'f4':4,'f6':6,'f7':7,'f8':8,'f9':9,'f10':10,'f11':11 },
+                flatStateMap: { 'f0':0,'f1':1,'f2':2,'f3':3,'f4':4,'f6':5,'f7':6,'f8':7,'f9':8,'f10':9,'f11':10 },
                 flatNodes: [
                     { id:'f0', label:'Received', stats:'87 | 1.2 Days', color:'inbox', v:[1,2,3,4] },
                     { id:'f1', label:'Triage', stats:'87 | 2.8 Days', color:'inbox', v:[1,2,3,4] },
@@ -1112,7 +1196,6 @@
                     { id:'f2', label:'In Review', stats:'87 | 3.5 Days', color:'inbox', v:[1,2,3,4] },
                     { id:'f3', label:'Approved', stats:'87 | 1.1 Days', color:'inbox', v:[1,2,3,4] },
                     { id:'f4', label:'Completed', stats:'87 | 0.8 Days', color:'inbox', v:[1,2,3,4] },
-                    { type:'cp', stats:'0.2 Days', v:[1,2,3,4] },
                     { id:'f6', label:'Created', stats:'87 | 0.5 Days', color:'case', v:[1,2,3,4] },
                     { id:'f7', label:'Assessment', stats:'87 | 3.2 Days', color:'case', v:[1,2,3,4] },
                     { id:'f-ft', label:'Fast Track', stats:'15 | 1.3 Days', color:'case', v:[3,4] },
@@ -1124,142 +1207,156 @@
                 title: 'Inbox Item → Case Process',
                 flatTitle: 'End-to-End Process: Inbox Item → Case',
                 ddTitle: 'Inbox Item Process (Parent)',
-                cpHeader: `<div class="text-[10px] uppercase font-bold text-gray-500 tracking-wider flex-1 text-center border-r">Inbox Item Process</div>
-                    <div class="text-[10px] uppercase font-bold text-gray-500 tracking-wider w-[150px] text-center">Crossing Point</div>
-                    <div class="text-[10px] uppercase font-bold text-gray-500 tracking-wider flex-1 text-center border-l">Case Process</div>`,
+                cpHeader: `<div class="text-[10px] uppercase font-bold text-gray-500 tracking-wider flex-1 text-center">Inbox Item Process</div>
+                    <div class="text-[10px] uppercase font-bold text-gray-500 tracking-wider flex-1 text-center">Case Process</div>`,
                 volume: { start: 87, end: 87 },
                 quality: '96.5%',
                 ddCrossingPoints: {
-                    'completed': { title: 'Case Process', badge: 'Child Process', meta: '87 records | via Crossing Point: Completed → Created' }
+                    'completed': { title: 'Case Process', badge: 'Child Process', meta: '87 records | Completed → Case Process' }
                 },
-                ddCpCards: `<div class="bg-white border border-[var(--veeva-orange)] rounded px-3 py-2 text-[12px]">
-                    <div class="font-semibold text-[var(--veeva-orange)]">Completed → Created</div>
-                    <div class="text-[11px] text-gray-500 mt-1">87 records | 0.2d avg</div></div>`,
+                ddCpCards: `<div class="bg-white border border-[var(--veeva-orange)] rounded px-3 py-2 text-[12px]"><div class="font-semibold text-[var(--veeva-orange)]">Completed → Created</div><div class="text-[11px] text-gray-500 mt-1">87 records | 0.2d avg</div></div>`,
                 leftVariantTitle: 'Inbox Item Variants',
                 rightVariantTitle: 'Case Variants',
                 leftVariants: [{ w:'85%', d:'5.2d' },{ w:'15%', d:'8.1d' }],
                 rightVariants: [{ w:'92%', d:'14.2d' },{ w:'8%', d:'22.1d' }],
                 flatVariantTitle: 'End-to-End Variants',
-                flatVariants: [{ w:'70%', d:'19.4d' },{ w:'15%', d:'23.5d' },{ w:'10%', d:'20.7d' },{ w:'5%', d:'24.8d' }]
+                flatVariants: [{ w:'70%', d:'19.4d' },{ w:'15%', d:'23.5d' },{ w:'10%', d:'20.7d' },{ w:'5%', d:'24.8d' }],
+                // Crossing Point View graph data
+                cpGraph: {
+                    left: [
+                        { id:'L0', si:0, label:'Received', stats:'87 | 1.2 Days', w:150, h:44 },
+                        { id:'L1', si:1, label:'Triage', stats:'87 | 2.8 Days', w:150, h:44 },
+                        { id:'L-def', si:-1, label:'Deferred', stats:'13 | 4.1 Days', w:100, h:38, v:[2] },
+                        { id:'L2', si:2, label:'In Review', stats:'87 | 3.5 Days', w:150, h:44 },
+                        { id:'L3', si:3, label:'Approved', stats:'87 | 1.1 Days', w:150, h:44 },
+                        { id:'L4', si:4, label:'Completed', stats:'87 | 0.8 Days', w:180, h:44 }
+                    ],
+                    leftEdges: [['L0','L1'],['L1','L2'],['L1','L-def'],['L-def','L2'],['L2','L3'],['L3','L4']],
+                    right: [
+                        { id:'R6', si:5, label:'Created', stats:'87 | 0.5 Days', w:180, h:44 },
+                        { id:'R7', si:6, label:'Assessment', stats:'87 | 3.2 Days', w:150, h:44 },
+                        { id:'R-ft', si:-1, label:'Fast Track', stats:'15 | 1.3 Days', w:100, h:38, v:[2] },
+                        { id:'R8', si:7, label:'Investigation', stats:'72 | 4.8 Days', w:150, h:44 },
+                        { id:'R9', si:8, label:'Resolution', stats:'87 | 2.1 Days', w:150, h:44 },
+                        { id:'R10', si:9, label:'Pending Approval', stats:'87 | 1.5 Days', w:170, h:44 },
+                        { id:'R11', si:10, label:'Closed', stats:'87 | 5.2 Days', w:170, h:44 }
+                    ],
+                    rightEdges: [['R6','R7'],['R7','R8'],['R7','R-ft'],['R-ft','R8'],['R8','R9'],['R9','R10'],['R10','R11']],
+                    rework: [{ from:'R10', to:'R8', count:1 }]
+                },
+                // Drill-Down View graph data
+                ddGraph: {
+                    parent: [
+                        { id:'received', label:'Received', stats:'87 records | 1.2 Days avg' },
+                        { id:'triage', label:'Triage', stats:'87 records | 2.8 Days avg' },
+                        { id:'in-review', label:'In Review', stats:'87 records | 3.5 Days avg' },
+                        { id:'approved', label:'Approved', stats:'87 records | 1.1 Days avg' },
+                        { id:'completed', label:'Completed', stats:'87 records | 0.8 Days avg', isCp:true, cpLabel:'→ Case Process' }
+                    ],
+                    parentEdges: [['received','triage'],['triage','in-review'],['in-review','approved'],['approved','completed']],
+                    child: [
+                        { id:'c-created', label:'Created', stats:'87 | 0.5 Days', isCp:true },
+                        { id:'c-assess', label:'Assessment', stats:'87 | 3.2 Days' },
+                        { id:'c-ft', label:'Fast Track', stats:'15 | 1.3 Days' },
+                        { id:'c-invest', label:'Investigation', stats:'72 | 4.8 Days' },
+                        { id:'c-resol', label:'Resolution', stats:'87 | 2.1 Days' },
+                        { id:'c-pend', label:'Pending Approval', stats:'87 | 1.5 Days' },
+                        { id:'c-closed', label:'Closed', stats:'87 | 5.2 Days' }
+                    ],
+                    childEdges: [['c-created','c-assess'],['c-assess','c-invest'],['c-assess','c-ft'],['c-ft','c-invest'],['c-invest','c-resol'],['c-resol','c-pend'],['c-pend','c-closed']],
+                    childRework: [{ from:'c-pend', to:'c-invest', count:1 }],
+                    childMetrics: `<div class="flex flex-col gap-4 min-w-[200px] pt-2">
+                        <div class="text-[11px] font-bold text-gray-500 uppercase">Case Process Metrics</div>
+                        <div class="flex flex-col gap-3">
+                            <div class="border border-[var(--border-color)] rounded p-3 bg-white"><div class="text-[10px] text-gray-500 uppercase">Cycle Time</div><div class="text-[18px] font-bold mt-1">17.3 Days</div><div class="text-[11px] text-gray-400">avg across 87 records</div></div>
+                            <div class="border border-[var(--border-color)] rounded p-3 bg-white"><div class="text-[10px] text-gray-500 uppercase">Variants</div><div class="text-[18px] font-bold mt-1">2</div><div class="text-[11px] text-gray-400">Main (83%) + Fast Track (17%)</div></div>
+                            <div class="border border-[var(--border-color)] rounded p-3 bg-white"><div class="text-[10px] text-gray-500 uppercase">Rework Rate</div><div class="text-[18px] font-bold mt-1">3.4%</div><div class="text-[11px] text-gray-400">Pending Approval → Investigation</div></div>
+                        </div></div>`
+                }
             },
             'dev-capa': {
                 states: [
                     { label: '[Dev] Define Team', days: 2.1 },
                     { label: '[Dev] In Investigation', days: 5.3 },
                     { label: '[Dev] In CAPA Planning', days: 3.8 },
-                    { label: 'CROSSING POINT 1', days: 0.3 },
                     { label: '[CAPA] Define Team', days: 1.9 },
                     { label: '[CAPA] Ready for Impl', days: 4.2 },
                     { label: '[CAPA] In Implementation', days: 6.1 },
                     { label: '[CAPA] Closed', days: 2.0 },
-                    { label: 'CROSSING POINT 2', days: 0.1 },
                     { label: '[Dev] Closed', days: 1.4 }
                 ],
-                flatStateMap: { 'f0':0,'f1':1,'f2':2,'f4':4,'f5':5,'f6':6,'f7':7,'f9':9 },
+                flatStateMap: { 'f0':0,'f1':1,'f2':2,'f4':3,'f5':4,'f6':5,'f7':6,'f9':7 },
                 flatNodes: [
                     { id:'f0', label:'Define Team', stats:'42 | 2.1 Days', color:'dev', v:[1,2,3,4] },
                     { id:'f1', label:'In Investigation', stats:'42 | 5.3 Days', color:'dev', v:[1,2,3,4] },
                     { id:'f4-early', label:'Early CAPA Start', stats:'8 | 1.2 Days', color:'capa', v:[2,4] },
                     { id:'f2', label:'In CAPA Planning', stats:'42 | 3.8 Days', color:'dev', v:[1,2,3,4] },
-                    { type:'cp', stats:'0.3 Days', v:[1,2,3,4] },
                     { id:'f4', label:'Define Team', stats:'42 | 1.9 Days', color:'capa', v:[1,2,3,4] },
                     { id:'f5', label:'Ready for Impl', stats:'42 | 4.2 Days', color:'capa', v:[1,2,3,4] },
                     { id:'f6', label:'In Implementation', stats:'42 | 6.1 Days', color:'capa', v:[1,2,3,4] },
                     { id:'f9-early', label:'Early Dev Close', stats:'5 | 0.8 Days', color:'dev', v:[3,4] },
                     { id:'f7', label:'Closed', stats:'42 | 2.0 Days', color:'capa', v:[1,2,3,4] },
-                    { type:'cp', stats:'0.1 Days', v:[1,2,3,4] },
                     { id:'f9', label:'Closed', stats:'42 | 1.4 Days', color:'dev', v:[1,2,3,4] }
                 ],
                 title: 'Deviation → CAPA Process',
                 flatTitle: 'End-to-End Process: Deviation → CAPA',
                 ddTitle: 'Deviation Process (Parent)',
-                cpHeader: `<div class="text-[10px] uppercase font-bold text-gray-500 tracking-wider flex-1 text-center border-r">Deviation Process</div>
-                    <div class="text-[10px] uppercase font-bold text-gray-500 tracking-wider w-[150px] text-center">Crossing Points</div>
-                    <div class="text-[10px] uppercase font-bold text-gray-500 tracking-wider flex-1 text-center border-l">CAPA Process</div>`,
+                cpHeader: `<div class="text-[10px] uppercase font-bold text-gray-500 tracking-wider flex-1 text-center">Deviation Process</div>
+                    <div class="text-[10px] uppercase font-bold text-gray-500 tracking-wider flex-1 text-center">CAPA Process</div>`,
                 volume: { start: 42, end: 42 },
                 quality: '91.2%',
                 ddCrossingPoints: {
-                    'in-capa-planning': { title: 'CAPA Process', badge: 'Child Process', meta: '42 records | via Crossing Point: In CAPA Planning → Define Team' },
-                    'dev-closed': { title: 'CAPA Completion', badge: 'Return Crossing Point', meta: '42 records | via Crossing Point: CAPA Closed → Dev Closed' }
+                    'in-capa-planning': { title: 'CAPA Process', badge: 'Child Process', meta: '42 records | In CAPA Planning → CAPA Process' },
+                    'dev-closed': { title: 'CAPA Completion', badge: 'Child Process', meta: '42 records | Related CAPA Process' }
                 },
-                ddCpCards: `<div class="bg-white border border-[var(--veeva-orange)] rounded px-3 py-2 text-[12px] mb-2">
-                    <div class="font-semibold text-[var(--veeva-orange)]">In CAPA Planning → Define Team</div>
-                    <div class="text-[11px] text-gray-500 mt-1">42 records | 0.3d avg</div></div>
-                    <div class="bg-white border border-[var(--veeva-orange)] rounded px-3 py-2 text-[12px]">
-                    <div class="font-semibold text-[var(--veeva-orange)]">CAPA Closed → Dev Closed</div>
-                    <div class="text-[11px] text-gray-500 mt-1">42 records | 0.1d avg</div></div>`,
+                ddCpCards: `<div class="bg-white border border-[var(--veeva-orange)] rounded px-3 py-2 text-[12px] mb-2"><div class="font-semibold text-[var(--veeva-orange)]">In CAPA Planning → Define Team</div><div class="text-[11px] text-gray-500 mt-1">42 records | 0.3d avg</div></div><div class="bg-white border border-[var(--veeva-orange)] rounded px-3 py-2 text-[12px]"><div class="font-semibold text-[var(--veeva-orange)]">CAPA Closed → Dev Closed</div><div class="text-[11px] text-gray-500 mt-1">42 records | 0.1d avg</div></div>`,
                 leftVariantTitle: 'Deviation Variants',
                 rightVariantTitle: 'CAPA Variants',
                 leftVariants: [{ w:'90%', d:'11.2d' },{ w:'10%', d:'14.5d' }],
                 rightVariants: [{ w:'88%', d:'14.2d' },{ w:'12%', d:'17.8d' }],
                 flatVariantTitle: 'End-to-End Variants',
-                flatVariants: [{ w:'65%', d:'25.8d' },{ w:'15%', d:'28.2d' },{ w:'12%', d:'24.1d' },{ w:'8%', d:'27.5d' }]
-            }
-        };
-
-        // =============================================
-        // SVG TEMPLATES
-        // =============================================
-        const SVG_TEMPLATES = {
-            'inbox-case': {}, // populated from initial HTML on load
-            'dev-capa': {
-                cpSvg: `<svg width="910" height="420" viewBox="0 0 910 420" id="main-svg">
-                    <defs><marker id="ah-gray" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#999"/></marker>
-                    <marker id="ah-orange" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="var(--veeva-orange)"/></marker></defs>
-                    <g id="left-process-group">
-                        <g class="graph-node" data-state="0"><rect x="115" y="15" width="150" height="44" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/><text x="190" y="34" text-anchor="middle" font-size="12" font-weight="600" fill="var(--text-main)">Define Team</text><text x="190" y="50" text-anchor="middle" font-size="10" fill="var(--text-muted)">42 | 2.1 Days</text></g>
-                        <path class="graph-edge" d="M190 59 L190 95" stroke="#999" stroke-width="2" marker-end="url(#ah-gray)"/>
-                        <g class="graph-node" data-state="1"><rect x="115" y="95" width="150" height="44" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/><text x="190" y="114" text-anchor="middle" font-size="12" font-weight="600" fill="var(--text-main)">In Investigation</text><text x="190" y="130" text-anchor="middle" font-size="10" fill="var(--text-muted)">42 | 5.3 Days</text></g>
-                        <path class="graph-edge" d="M190 139 L190 180" stroke="#999" stroke-width="2" marker-end="url(#ah-gray)"/>
-                        <g class="graph-node" data-state="2"><rect x="100" y="180" width="180" height="44" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/><text x="190" y="199" text-anchor="middle" font-size="12" font-weight="600" fill="var(--text-main)">In CAPA Planning</text><text x="190" y="215" text-anchor="middle" font-size="10" fill="var(--text-muted)">42 | 3.8 Days</text></g>
-                        <g class="graph-node" data-state="9"><rect x="115" y="340" width="150" height="44" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/><text x="190" y="359" text-anchor="middle" font-size="12" font-weight="600" fill="var(--text-main)">Closed</text><text x="190" y="375" text-anchor="middle" font-size="10" fill="var(--text-muted)">42 | 1.4 Days</text></g>
-                    </g>
-                    <g id="handoff-group">
-                        <path class="graph-edge" data-edge="cp1" d="M280 202 L380 202 Q455 202 455 140" stroke="var(--veeva-orange)" stroke-width="2.5" stroke-dasharray="6,4" fill="none"/>
-                        <rect x="380" y="95" width="150" height="44" rx="6" fill="white" stroke="var(--node-default-stroke)" stroke-width="1.5"/><text x="455" y="114" text-anchor="middle" font-size="11" font-weight="700" fill="var(--text-main)">CP 1</text><text x="455" y="130" text-anchor="middle" font-size="10" fill="var(--text-muted)">42 | 0.3 Days</text>
-                        <path class="graph-edge" data-edge="cp1b" d="M455 95 Q455 37 560 37 L630 37" stroke="var(--veeva-orange)" stroke-width="2.5" stroke-dasharray="6,4" fill="none" marker-end="url(#ah-orange)"/>
-                        <path class="graph-edge" data-edge="cp2a" d="M630 302 L560 302 Q455 302 455 260" stroke="var(--veeva-orange)" stroke-width="2.5" stroke-dasharray="6,4" fill="none"/>
-                        <rect x="380" y="215" width="150" height="44" rx="6" fill="white" stroke="var(--node-default-stroke)" stroke-width="1.5"/><text x="455" y="234" text-anchor="middle" font-size="11" font-weight="700" fill="var(--text-main)">CP 2</text><text x="455" y="250" text-anchor="middle" font-size="10" fill="var(--text-muted)">42 | 0.1 Days</text>
-                        <path class="graph-edge" data-edge="cp2b" d="M455 260 Q455 362 350 362 L265 362" stroke="var(--veeva-orange)" stroke-width="2.5" stroke-dasharray="6,4" fill="none" marker-end="url(#ah-orange)"/>
-                    </g>
-                    <g id="right-process-group" transform="translate(530, 0)">
-                        <g class="graph-node" data-state="4"><rect x="100" y="15" width="180" height="44" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/><text x="190" y="34" text-anchor="middle" font-size="12" font-weight="600">Define Team</text><text x="190" y="50" text-anchor="middle" font-size="10" fill="var(--text-muted)">42 | 1.9 Days</text></g>
-                        <path class="graph-edge" d="M190 59 L190 100" stroke="#999" stroke-width="2" marker-end="url(#ah-gray)"/>
-                        <g class="graph-node" data-state="5"><rect x="90" y="100" width="200" height="44" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/><text x="190" y="119" text-anchor="middle" font-size="12" font-weight="600">Ready for Impl</text><text x="190" y="135" text-anchor="middle" font-size="10" fill="var(--text-muted)">42 | 4.2 Days</text></g>
-                        <path class="graph-edge" d="M190 144 L190 190" stroke="#999" stroke-width="2" marker-end="url(#ah-gray)"/>
-                        <g class="graph-node" data-state="6"><rect x="90" y="190" width="200" height="44" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/><text x="190" y="209" text-anchor="middle" font-size="12" font-weight="600">In Implementation</text><text x="190" y="225" text-anchor="middle" font-size="10" fill="var(--text-muted)">42 | 6.1 Days</text></g>
-                        <path class="graph-edge" d="M190 234 L190 280" stroke="#999" stroke-width="2" marker-end="url(#ah-gray)"/>
-                        <g class="graph-node" data-state="7"><rect x="115" y="280" width="150" height="44" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/><text x="190" y="299" text-anchor="middle" font-size="12" font-weight="600">Closed</text><text x="190" y="315" text-anchor="middle" font-size="10" fill="var(--text-muted)">42 | 2.0 Days</text></g>
-                    </g></svg>`,
-                ddParentSvg: `<svg width="400" height="420" viewBox="0 0 400 420" id="dd-svg">
-                    <defs><marker id="ah-dd-gray" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#999"/></marker></defs>
-                    <g class="dd-node" data-dd-state="define-team" onclick="selectDDNode(this)"><rect x="100" y="15" width="200" height="50" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/><text x="200" y="37" text-anchor="middle" font-size="13" font-weight="600" fill="var(--text-main)">Define Team</text><text x="200" y="54" text-anchor="middle" font-size="10" fill="var(--text-muted)">42 records | 2.1 Days avg</text></g>
-                    <path class="dd-edge" d="M200 65 L200 95" stroke="#999" stroke-width="2" marker-end="url(#ah-dd-gray)"/>
-                    <g class="dd-node" data-dd-state="in-investigation" onclick="selectDDNode(this)"><rect x="100" y="95" width="200" height="50" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/><text x="200" y="117" text-anchor="middle" font-size="13" font-weight="600" fill="var(--text-main)">In Investigation</text><text x="200" y="134" text-anchor="middle" font-size="10" fill="var(--text-muted)">42 records | 5.3 Days avg</text></g>
-                    <path class="dd-edge" d="M200 145 L200 175" stroke="#999" stroke-width="2" marker-end="url(#ah-dd-gray)"/>
-                    <g class="dd-node crossing-point" data-dd-state="in-capa-planning" onclick="selectDDNode(this)"><rect x="75" y="175" width="250" height="56" rx="6" fill="var(--node-join-bg)" stroke="var(--node-join-stroke)" stroke-width="2"/><text x="200" y="197" text-anchor="middle" font-size="13" font-weight="600" fill="var(--text-main)">In CAPA Planning</text><text x="200" y="214" text-anchor="middle" font-size="10" fill="var(--text-muted)">42 records | 3.8 Days avg</text><text x="200" y="228" text-anchor="middle" font-size="9" font-weight="600" fill="var(--veeva-orange)" class="cp-label">CROSSING POINT → CAPA Process</text></g>
-                    <path class="dd-edge" d="M200 231 L200 275" stroke="#999" stroke-width="2" marker-end="url(#ah-dd-gray)"/>
-                    <g class="dd-node crossing-point" data-dd-state="dev-closed" onclick="selectDDNode(this)"><rect x="75" y="275" width="250" height="56" rx="6" fill="var(--node-join-bg)" stroke="var(--node-join-stroke)" stroke-width="2"/><text x="200" y="297" text-anchor="middle" font-size="13" font-weight="600" fill="var(--text-main)">Closed</text><text x="200" y="314" text-anchor="middle" font-size="10" fill="var(--text-muted)">42 records | 1.4 Days avg</text><text x="200" y="328" text-anchor="middle" font-size="9" font-weight="600" fill="var(--veeva-orange)" class="cp-label">CROSSING POINT ← CAPA Closed</text></g>
-                </svg>`,
-                ddChildHtml: `<div class="flex items-start gap-6">
-                    <svg width="420" height="380" viewBox="0 0 420 380" id="dd-child-svg">
-                        <defs><marker id="ah-dd-child" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#999"/></marker></defs>
-                        <g class="graph-node"><rect x="110" y="10" width="200" height="44" rx="6" fill="var(--node-join-bg)" stroke="var(--node-join-stroke)" stroke-width="2"/><text x="210" y="29" text-anchor="middle" font-size="12" font-weight="600">Define Team</text><text x="210" y="45" text-anchor="middle" font-size="10" fill="var(--text-muted)">42 | 1.9 Days</text></g>
-                        <path d="M210 54 L210 80" stroke="#999" stroke-width="2" marker-end="url(#ah-dd-child)"/>
-                        <g class="graph-node"><rect x="100" y="80" width="220" height="44" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/><text x="210" y="99" text-anchor="middle" font-size="12" font-weight="600">Ready for Impl</text><text x="210" y="115" text-anchor="middle" font-size="10" fill="var(--text-muted)">42 | 4.2 Days</text></g>
-                        <path d="M210 124 L210 160" stroke="#999" stroke-width="2" marker-end="url(#ah-dd-child)"/>
-                        <g class="graph-node"><rect x="100" y="160" width="220" height="44" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/><text x="210" y="179" text-anchor="middle" font-size="12" font-weight="600">In Implementation</text><text x="210" y="195" text-anchor="middle" font-size="10" fill="var(--text-muted)">42 | 6.1 Days</text></g>
-                        <path d="M210 204 L210 240" stroke="#999" stroke-width="2" marker-end="url(#ah-dd-child)"/>
-                        <g class="graph-node"><rect x="135" y="240" width="150" height="44" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/><text x="210" y="259" text-anchor="middle" font-size="12" font-weight="600">Closed</text><text x="210" y="275" text-anchor="middle" font-size="10" fill="var(--text-muted)">42 | 2.0 Days</text></g>
-                    </svg>
-                    <div class="flex flex-col gap-4 min-w-[200px] pt-2">
+                flatVariants: [{ w:'65%', d:'25.8d' },{ w:'15%', d:'28.2d' },{ w:'12%', d:'24.1d' },{ w:'8%', d:'27.5d' }],
+                cpGraph: {
+                    left: [
+                        { id:'L0', si:0, label:'Define Team', stats:'42 | 2.1 Days', w:150, h:44 },
+                        { id:'L1', si:1, label:'In Investigation', stats:'42 | 5.3 Days', w:150, h:44 },
+                        { id:'L2', si:2, label:'In CAPA Planning', stats:'42 | 3.8 Days', w:180, h:44 },
+                        { id:'L9', si:7, label:'Closed', stats:'42 | 1.4 Days', w:150, h:44 }
+                    ],
+                    leftEdges: [['L0','L1'],['L1','L2'],['L2','L9']],
+                    right: [
+                        { id:'R4', si:3, label:'Define Team', stats:'42 | 1.9 Days', w:180, h:44 },
+                        { id:'R5', si:4, label:'Ready for Impl', stats:'42 | 4.2 Days', w:200, h:44 },
+                        { id:'R6', si:5, label:'In Implementation', stats:'42 | 6.1 Days', w:200, h:44 },
+                        { id:'R7', si:6, label:'Closed', stats:'42 | 2.0 Days', w:150, h:44 }
+                    ],
+                    rightEdges: [['R4','R5'],['R5','R6'],['R6','R7']],
+                    rework: []
+                },
+                ddGraph: {
+                    parent: [
+                        { id:'define-team', label:'Define Team', stats:'42 records | 2.1 Days avg' },
+                        { id:'in-investigation', label:'In Investigation', stats:'42 records | 5.3 Days avg' },
+                        { id:'in-capa-planning', label:'In CAPA Planning', stats:'42 records | 3.8 Days avg', isCp:true, cpLabel:'→ CAPA Process' },
+                        { id:'dev-closed', label:'Closed', stats:'42 records | 1.4 Days avg', isCp:true, cpLabel:'→ CAPA Process' }
+                    ],
+                    parentEdges: [['define-team','in-investigation'],['in-investigation','in-capa-planning'],['in-capa-planning','dev-closed']],
+                    child: [
+                        { id:'c-dt', label:'Define Team', stats:'42 | 1.9 Days', isCp:true },
+                        { id:'c-rfi', label:'Ready for Impl', stats:'42 | 4.2 Days' },
+                        { id:'c-impl', label:'In Implementation', stats:'42 | 6.1 Days' },
+                        { id:'c-closed', label:'Closed', stats:'42 | 2.0 Days' }
+                    ],
+                    childEdges: [['c-dt','c-rfi'],['c-rfi','c-impl'],['c-impl','c-closed']],
+                    childRework: [],
+                    childMetrics: `<div class="flex flex-col gap-4 min-w-[200px] pt-2">
                         <div class="text-[11px] font-bold text-gray-500 uppercase">CAPA Process Metrics</div>
                         <div class="flex flex-col gap-3">
                             <div class="border border-[var(--border-color)] rounded p-3 bg-white"><div class="text-[10px] text-gray-500 uppercase">Cycle Time</div><div class="text-[18px] font-bold mt-1">14.2 Days</div><div class="text-[11px] text-gray-400">avg across 42 records</div></div>
                             <div class="border border-[var(--border-color)] rounded p-3 bg-white"><div class="text-[10px] text-gray-500 uppercase">Variants</div><div class="text-[18px] font-bold mt-1">2</div><div class="text-[11px] text-gray-400">Main (88%) + Expedited (12%)</div></div>
                             <div class="border border-[var(--border-color)] rounded p-3 bg-white"><div class="text-[10px] text-gray-500 uppercase">On-Time Rate</div><div class="text-[18px] font-bold mt-1">91.2%</div><div class="text-[11px] text-gray-400">within SLA target</div></div>
-                        </div>
-                    </div></div>`
+                        </div></div>`
+                }
             }
         };
 
@@ -1268,12 +1365,259 @@
         function getFlatStateMap() { return getProc().flatStateMap; }
 
         // =============================================
+        // DAGRE UTILITIES
+        // =============================================
+        const DG = {
+            defs: () => `<defs>
+                <marker id="ah-gray" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#999"/></marker>
+                <marker id="ah-orange" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="var(--veeva-orange)"/></marker>
+                <marker id="ah-rework" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#cc4444"/></marker>
+            </defs>`,
+
+            layout(nodes, edges, opts = {}) {
+                const g = new dagre.graphlib.Graph();
+                g.setGraph({ rankdir: opts.rankdir || 'TB', nodesep: opts.nodesep || 30, ranksep: opts.ranksep || 50, marginx: 20, marginy: 20 });
+                g.setDefaultEdgeLabel(() => ({}));
+                nodes.forEach(n => g.setNode(n.id, { label: n.label, width: n.w || 180, height: n.h || 44 }));
+                edges.forEach(([a, b]) => g.setEdge(a, b));
+                dagre.layout(g);
+                return g;
+            },
+
+            node(g, n, opts = {}) {
+                const pos = g.node(n.id);
+                if (!pos) return '';
+                const x = (opts.offsetX || 0) + pos.x - pos.width / 2;
+                const y = (opts.offsetY || 0) + pos.y - pos.height / 2;
+                const cx = (opts.offsetX || 0) + pos.x;
+                const cy = (opts.offsetY || 0) + pos.y;
+                const cls = opts.class || 'graph-node';
+                const ds = n.si !== undefined && n.si >= 0 ? ` data-state="${n.si}"` : '';
+                const ddState = n.id && opts.ddMode ? ` data-dd-state="${n.id}"` : '';
+                const onclick = opts.ddMode ? ` onclick="selectDDNode(this)"` : '';
+                const isCp = n.isCp || false;
+                const cpCls = isCp ? ' crossing-point' : '';
+                const fill = isCp ? 'var(--node-join-bg)' : (opts.fill || 'var(--node-default-bg)');
+                const stroke = isCp ? 'var(--node-join-stroke)' : (opts.stroke || 'var(--node-default-stroke)');
+                const sw = isCp ? '2' : '1.5';
+                let html = `<g class="${cls}${cpCls}"${ds}${ddState}${onclick}>`;
+                html += `<rect x="${x}" y="${y}" width="${pos.width}" height="${pos.height}" rx="6" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
+                html += `<text x="${cx}" y="${cy - 3}" text-anchor="middle" font-size="${opts.fontSize || 12}" font-weight="600" fill="var(--text-main)">${n.label}</text>`;
+                html += `<text x="${cx}" y="${cy + 12}" text-anchor="middle" font-size="10" fill="var(--text-muted)">${n.stats}</text>`;
+                if (n.cpLabel) {
+                    html += `<text x="${cx}" y="${cy + 24}" text-anchor="middle" font-size="9" font-weight="600" fill="var(--veeva-orange)" class="cp-label">${n.cpLabel}</text>`;
+                }
+                html += '</g>';
+                return html;
+            },
+
+            edge(g, a, b, opts = {}) {
+                const e = g.edge(a, b);
+                if (!e || !e.points || e.points.length < 2) return '';
+                const pts = e.points.map(p => ({ x: p.x + (opts.offsetX || 0), y: p.y + (opts.offsetY || 0) }));
+                let d = `M${pts[0].x} ${pts[0].y}`;
+                for (let i = 1; i < pts.length; i++) d += ` L${pts[i].x} ${pts[i].y}`;
+                const cls = opts.class || 'graph-edge';
+                const stroke = opts.stroke || '#999';
+                const sw = opts.strokeWidth || 2;
+                const marker = opts.marker || 'url(#ah-gray)';
+                const dash = opts.dash ? ` stroke-dasharray="${opts.dash}"` : '';
+                return `<path class="${cls}" d="${d}" stroke="${stroke}" stroke-width="${sw}" fill="none" marker-end="${marker}"${dash}/>`;
+            },
+
+            bbox(g, offsetX = 0, offsetY = 0) {
+                const graph = g.graph();
+                return { w: graph.width + offsetX, h: graph.height + offsetY };
+            }
+        };
+
+        // =============================================
+        // CROSSING POINT VIEW RENDERER
+        // =============================================
+        let leftSelectedVariant = 0;
+        let rightSelectedVariant = 0;
+
+        function renderCrossingPointView() {
+            const proc = getProc();
+            const cpg = proc.cpGraph;
+            if (!cpg) return;
+
+            const leftVariant = leftSelectedVariant + 1;
+            const rightVariant = rightSelectedVariant + 1;
+
+            // Filter nodes by variant: keep if no `v` array or if `v` contains the selected variant
+            const leftNodes = cpg.left.filter(n => !n.v || n.v.includes(leftVariant));
+            const rightNodes = cpg.right.filter(n => !n.v || n.v.includes(rightVariant));
+
+            // Filter edges: keep only if both endpoints are visible
+            const leftIds = new Set(leftNodes.map(n => n.id));
+            const rightIds = new Set(rightNodes.map(n => n.id));
+            const leftEdges = cpg.leftEdges.filter(([a, b]) => leftIds.has(a) && leftIds.has(b));
+            const rightEdges = cpg.rightEdges.filter(([a, b]) => rightIds.has(a) && rightIds.has(b));
+
+            // Layout left and right independently
+            const gL = DG.layout(leftNodes, leftEdges, { ranksep: 40 });
+            const gR = DG.layout(rightNodes, rightEdges, { ranksep: 40 });
+            const bL = DG.bbox(gL);
+            const bR = DG.bbox(gR);
+
+            // Position: left at x=0, right offset with a gap between disconnected graphs
+            const gap = 80;
+            const rightOffX = bL.w + gap;
+            const totalW = rightOffX + bR.w + 20;
+            const totalH = Math.max(bL.h, bR.h) + 20;
+
+            let svg = `<svg width="${totalW}" height="${totalH}" viewBox="0 0 ${totalW} ${totalH}" id="main-svg">${DG.defs()}`;
+
+            // Left process nodes & edges
+            svg += '<g id="left-process-group">';
+            leftNodes.forEach(n => { svg += DG.node(gL, n); });
+            leftEdges.forEach(([a, b]) => { svg += DG.edge(gL, a, b); });
+            svg += '</g>';
+
+            // Right process nodes & edges
+            svg += `<g id="right-process-group">`;
+            rightNodes.forEach(n => { svg += DG.node(gR, n, { offsetX: rightOffX }); });
+            rightEdges.forEach(([a, b]) => { svg += DG.edge(gR, a, b, { offsetX: rightOffX }); });
+            svg += '</g>';
+
+            // Rework loops (drawn manually) — only if both endpoints are visible
+            if (cpg.rework) cpg.rework.forEach(rw => {
+                if (!rightIds.has(rw.from) || !rightIds.has(rw.to)) return;
+                const fromPos = gR.node(rw.from);
+                const toPos = gR.node(rw.to);
+                if (!fromPos || !toPos) return;
+                const fromY = fromPos.y;
+                const toY = toPos.y;
+                const loopX = rightOffX + fromPos.x - fromPos.width/2 - 25;
+                svg += `<path class="graph-edge" d="M${rightOffX + fromPos.x - fromPos.width/2} ${fromY} Q${loopX} ${fromY} ${loopX} ${(fromY+toY)/2} L${loopX} ${toY} Q${loopX} ${toY} ${rightOffX + toPos.x - toPos.width/2} ${toY}" stroke="#cc4444" stroke-width="1.5" stroke-dasharray="4,3" fill="none" marker-end="url(#ah-rework)"/>`;
+                svg += `<text x="${loopX - 6}" y="${(fromY+toY)/2}" text-anchor="middle" font-size="9" fill="#cc4444">${rw.count}</text>`;
+            });
+
+            svg += '</svg>';
+            document.getElementById('cp-svg-container').innerHTML = svg;
+        }
+
+        // =============================================
+        // FLATTENED VIEW RENDERER (dagre-based)
+        // =============================================
+        function renderFlatSvg() {
+            const proc = getProc();
+            const nodes = proc.flatNodes;
+            const variantNum = flatSelectedVariant + 1;
+            const visible = nodes.filter(n => n.v.includes(variantNum));
+
+            // Layout as a single dagre graph
+            const nodeW = 180, nodeH = 40;
+            const g = new dagre.graphlib.Graph();
+            g.setGraph({ rankdir: 'TB', nodesep: 20, ranksep: 30, marginx: 10, marginy: 10 });
+            g.setDefaultEdgeLabel(() => ({}));
+            visible.forEach(n => g.setNode(n.id, { width: nodeW, height: nodeH }));
+            for (let i = 0; i < visible.length - 1; i++) g.setEdge(visible[i].id, visible[i + 1].id);
+            dagre.layout(g);
+            const bbox = g.graph();
+
+            const svgW = 320;
+            const cx = svgW / 2;
+            const totalH = bbox.height + 20;
+            const offX = cx - bbox.width / 2;
+            const offY = 10;
+
+            let svg = `<svg width="${svgW}" height="${totalH}" viewBox="0 0 ${svgW} ${totalH}" id="flat-svg" class="p-4">
+                <defs><marker id="ah-flat-gray" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#999"/></marker></defs>`;
+
+            // Nodes
+            visible.forEach(n => {
+                const pos = g.node(n.id);
+                if (!pos) return;
+                const nx = offX + pos.x - nodeW / 2;
+                const ny = offY + pos.y - nodeH / 2;
+                const ncx = offX + pos.x;
+                const colorClass = `flat-process-${n.color}`;
+                svg += `<g class="graph-node ${colorClass}" data-state="${n.id}">`;
+                svg += `<rect x="${nx}" y="${ny}" width="${nodeW}" height="${nodeH}" rx="6" stroke-width="1.5"/>`;
+                svg += `<text x="${ncx}" y="${ny + 17}" text-anchor="middle" font-size="12" font-weight="600" class="node-name">${n.label}</text>`;
+                svg += `<text x="${ncx}" y="${ny + 32}" text-anchor="middle" font-size="10" fill="var(--text-muted)">${n.stats}</text>`;
+                svg += '</g>';
+            });
+
+            // Edges (all regular gray)
+            for (let i = 0; i < visible.length - 1; i++) {
+                const e = g.edge(visible[i].id, visible[i + 1].id);
+                if (!e || !e.points) continue;
+                const pts = e.points.map(p => ({ x: offX + p.x, y: offY + p.y }));
+                let d = `M${pts[0].x} ${pts[0].y}`;
+                for (let j = 1; j < pts.length; j++) d += ` L${pts[j].x} ${pts[j].y}`;
+                svg += `<path class="graph-edge" d="${d}" stroke="#999" stroke-width="2" fill="none" marker-end="url(#ah-flat-gray)"/>`;
+            }
+
+            svg += '</svg>';
+            document.getElementById('flat-graph-container').innerHTML = svg;
+        }
+
+        // =============================================
+        // DRILL-DOWN VIEW RENDERER
+        // =============================================
+        function renderDrillDownView() {
+            const proc = getProc();
+            const dd = proc.ddGraph;
+            if (!dd) return;
+
+            // Parent graph
+            const parentNodes = dd.parent;
+            const gP = new dagre.graphlib.Graph();
+            gP.setGraph({ rankdir: 'TB', nodesep: 20, ranksep: 35, marginx: 20, marginy: 15 });
+            gP.setDefaultEdgeLabel(() => ({}));
+            parentNodes.forEach(n => gP.setNode(n.id, { width: n.isCp ? 250 : 200, height: n.isCp ? 56 : 50 }));
+            dd.parentEdges.forEach(([a, b]) => gP.setEdge(a, b));
+            dagre.layout(gP);
+
+            const pBbox = gP.graph();
+            let pSvg = `<svg width="${pBbox.width + 20}" height="${pBbox.height + 20}" viewBox="0 0 ${pBbox.width + 20} ${pBbox.height + 20}" id="dd-svg">`;
+            pSvg += DG.defs();
+            parentNodes.forEach(n => { pSvg += DG.node(gP, n, { class: 'dd-node', ddMode: true, fontSize: 13 }); });
+            dd.parentEdges.forEach(([a, b]) => { pSvg += DG.edge(gP, a, b, { class: 'dd-edge' }); });
+            pSvg += '</svg>';
+            document.getElementById('dd-graph-container').innerHTML = pSvg;
+
+            // Child graph
+            const childNodes = dd.child;
+            const gC = new dagre.graphlib.Graph();
+            gC.setGraph({ rankdir: 'TB', nodesep: 20, ranksep: 35, marginx: 20, marginy: 15 });
+            gC.setDefaultEdgeLabel(() => ({}));
+            childNodes.forEach(n => gC.setNode(n.id, { width: n.isCp ? 200 : 180, height: 44 }));
+            dd.childEdges.forEach(([a, b]) => gC.setEdge(a, b));
+            dagre.layout(gC);
+
+            const cBbox = gC.graph();
+            let cSvg = `<div class="flex items-start gap-6"><svg width="${cBbox.width + 20}" height="${cBbox.height + 20}" viewBox="0 0 ${cBbox.width + 20} ${cBbox.height + 20}" id="dd-child-svg">`;
+            cSvg += DG.defs();
+            childNodes.forEach(n => { cSvg += DG.node(gC, n); });
+            dd.childEdges.forEach(([a, b]) => { cSvg += DG.edge(gC, a, b); });
+
+            // Child rework loops
+            if (dd.childRework) dd.childRework.forEach(rw => {
+                const fromPos = gC.node(rw.from);
+                const toPos = gC.node(rw.to);
+                if (!fromPos || !toPos) return;
+                const loopX = fromPos.x - fromPos.width/2 - 25;
+                cSvg += `<path class="graph-edge" d="M${fromPos.x - fromPos.width/2} ${fromPos.y} Q${loopX} ${fromPos.y} ${loopX} ${(fromPos.y+toPos.y)/2} L${loopX} ${toPos.y} Q${loopX} ${toPos.y} ${toPos.x - toPos.width/2} ${toPos.y}" stroke="#cc4444" stroke-width="1.5" stroke-dasharray="4,3" fill="none" marker-end="url(#ah-rework)"/>`;
+                cSvg += `<text x="${loopX - 6}" y="${(fromPos.y+toPos.y)/2}" text-anchor="middle" font-size="9" fill="#cc4444">${rw.count}</text>`;
+            });
+
+            cSvg += '</svg>';
+            cSvg += dd.childMetrics || '';
+            cSvg += '</div>';
+            document.getElementById('dd-drawer-body').innerHTML = cSvg;
+        }
+
+        // =============================================
         // TAB SWITCHING
         // =============================================
         function switchTab(tabId) {
             document.querySelectorAll('#main-tabs .tab-btn').forEach(btn => btn.classList.remove('active'));
             event.currentTarget.classList.add('active');
-            ['admin-tab', 'monitor-tab', 'flat-tab', 'drilldown-tab'].forEach(id => {
+            ['admin-tab', 'monitor-tab', 'flat-tab', 'swimlane-tab', 'drilldown-tab'].forEach(id => {
                 document.getElementById(id).classList.add('hidden');
             });
             document.getElementById(tabId).classList.remove('hidden');
@@ -1287,26 +1631,23 @@
             const proc = getProc();
 
             // Sync all dropdowns
-            ['process-select', 'flat-process-select', 'dd-process-select'].forEach(id => {
+            ['process-select', 'flat-process-select', 'swim-process-select', 'dd-process-select'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.value = processId;
             });
 
-            // --- Crossing Point View ---
+            // --- Two-Process View ---
             document.getElementById('monitor-title').textContent = proc.title;
-            // Swap header
             const cpHeaderEl = document.querySelector('#monitor-tab .joined-graph-container .bg-\\[\\#fafafa\\]');
             if (cpHeaderEl) cpHeaderEl.innerHTML = proc.cpHeader;
-            // Swap SVG
-            const cpSvgContainer = document.querySelector('#monitor-tab .joined-graph-container .p-6');
-            if (cpSvgContainer) cpSvgContainer.innerHTML = SVG_TEMPLATES[processId].cpSvg;
-            // Variant panels
+            leftSelectedVariant = 0;
+            rightSelectedVariant = 0;
+            renderCrossingPointView();
             buildVariantPanel('left-variants', proc.leftVariants, "toggleVariant('left',");
             buildVariantPanel('right-variants', proc.rightVariants, "toggleVariant('right',");
             document.querySelector('#monitor-tab .variant-panel:first-of-type .variant-panel-header').textContent = proc.leftVariantTitle;
             const rightVPHeader = document.querySelectorAll('#monitor-tab .variant-panel');
             if (rightVPHeader[1]) rightVPHeader[1].querySelector('.variant-panel-header').textContent = proc.rightVariantTitle;
-            // Volume & quality metrics
             document.querySelectorAll('#metrics-bar-container .metric-value').forEach((el, i) => {
                 if (i === 2) el.textContent = proc.volume.start;
                 if (i === 3) el.textContent = proc.volume.end;
@@ -1322,10 +1663,17 @@
             document.querySelector('#flat-tab .variant-panel-header').textContent = proc.flatVariantTitle;
             initFlatCycleTime();
 
+            // --- Swimlane View ---
+            document.getElementById('swim-title').textContent = proc.flatTitle;
+            swimSelectedVariant = 0;
+            renderSwimlaneSvg();
+            buildVariantPanel('swim-variants', proc.flatVariants, "toggleSwimVariantRow(");
+            document.querySelector('#swimlane-tab .variant-panel-header').textContent = proc.flatVariantTitle;
+            initSwimCycleTime();
+
             // --- Drill-Down View ---
             document.querySelector('#drilldown-tab h2').textContent = proc.ddTitle;
-            document.getElementById('dd-graph-container').innerHTML = SVG_TEMPLATES[processId].ddParentSvg;
-            document.getElementById('dd-drawer-body').innerHTML = SVG_TEMPLATES[processId].ddChildHtml;
+            renderDrillDownView();
             document.getElementById('dd-cp-cards').innerHTML = proc.ddCpCards;
             closeDDDrawer();
         }
@@ -1344,7 +1692,7 @@
         }
 
         // =============================================
-        // CROSSING POINT VIEW - CYCLE TIME
+        // CROSSING POINT VIEW - CYCLE TIME & VARIANTS
         // =============================================
         function updateCycleTime() {
             const startSelect = document.getElementById('ct-start');
@@ -1387,7 +1735,6 @@
                 if (idx === start) node.classList.add('ct-start-active');
                 else if (idx === end) node.classList.add('ct-end-active');
             });
-            svg.querySelectorAll('.graph-edge').forEach(e => e.classList.remove('fade-out'));
         }
 
         function zoom(dir) {
@@ -1399,22 +1746,15 @@
         }
 
         function toggleVariant(side, index) {
+            if (side === 'left') leftSelectedVariant = index;
+            else rightSelectedVariant = index;
             const container = document.getElementById(side + '-variants');
             if (!container) return;
             container.querySelectorAll('.variant-row').forEach((r, i) => {
                 i === index ? r.classList.add('selected') : r.classList.remove('selected');
             });
-            const mainSvg = document.getElementById('main-svg');
-            if (!mainSvg) return;
-            if (side === 'left') {
-                mainSvg.querySelectorAll('.variant-2-only').forEach(el => {
-                    index === 1 ? el.classList.add('fade-out') : el.classList.remove('fade-out');
-                });
-            } else {
-                mainSvg.querySelectorAll('.variant-2-only-right').forEach(el => {
-                    index === 1 ? el.classList.add('fade-out') : el.classList.remove('fade-out');
-                });
-            }
+            renderCrossingPointView();
+            updateMetrics();
         }
 
         function toggleResolution() {
@@ -1438,66 +1778,6 @@
                 parseInt(document.getElementById('flat-ct-start')?.value ?? 0),
                 parseInt(document.getElementById('flat-ct-end')?.value ?? 0)
             );
-        }
-
-        function renderFlatSvg() {
-            const proc = getProc();
-            const nodes = proc.flatNodes;
-            const variantNum = flatSelectedVariant + 1;
-            const cx = 130, nodeW = 180, nodeH = 40, gap = 16, cpGap = 36;
-
-            // Filter to nodes visible in the selected variant
-            const visible = nodes.filter(n => n.v.includes(variantNum));
-
-            // Calculate positions
-            let y = 10;
-            const positions = [];
-            for (const node of visible) {
-                if (node.type === 'cp') {
-                    positions.push({ ...node, y, h: cpGap });
-                    y += cpGap;
-                } else {
-                    positions.push({ ...node, y, h: nodeH });
-                    y += nodeH + gap;
-                }
-            }
-            const totalH = y + 10;
-
-            // Build SVG
-            let svg = `<svg width="320" height="${totalH}" viewBox="0 0 320 ${totalH}" id="flat-svg" class="p-4">
-                <defs><marker id="ah-flat-gray" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#999"/></marker>
-                <marker id="ah-flat-orange" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="var(--veeva-orange)"/></marker></defs>`;
-
-            for (let i = 0; i < positions.length; i++) {
-                const p = positions[i];
-                if (p.type === 'cp') {
-                    // Crossing point: orange dashed edge with label
-                    const y1 = p.y;
-                    const y2 = p.y + cpGap;
-                    svg += `<path class="graph-edge" d="M${cx} ${y1} L${cx} ${y2}" stroke="var(--veeva-orange)" stroke-width="2.5" stroke-dasharray="6,4" fill="none" marker-end="url(#ah-flat-orange)"/>`;
-                    svg += `<rect x="${cx-42}" y="${y1 + (cpGap-18)/2}" width="84" height="18" rx="9" fill="var(--veeva-orange)" opacity="0.15"/>`;
-                    svg += `<text x="${cx}" y="${y1 + cpGap/2 + 5}" text-anchor="middle" font-size="9" font-weight="600" fill="var(--veeva-orange)">${p.stats}</text>`;
-                } else {
-                    // State node
-                    const rx = cx - nodeW/2;
-                    const colorClass = `flat-process-${p.color}`;
-                    svg += `<g class="graph-node ${colorClass}" data-state="${p.id}">`;
-                    svg += `<rect x="${rx}" y="${p.y}" width="${nodeW}" height="${nodeH}" rx="6" stroke-width="1.5"/>`;
-                    svg += `<text x="${cx}" y="${p.y + 17}" text-anchor="middle" font-size="12" font-weight="600" class="node-name">${p.label}</text>`;
-                    svg += `<text x="${cx}" y="${p.y + 32}" text-anchor="middle" font-size="10" fill="var(--text-muted)">${p.stats}</text>`;
-                    svg += `</g>`;
-
-                    // Edge to next node (if not last and next is not a cp)
-                    if (i < positions.length - 1) {
-                        const next = positions[i + 1];
-                        if (next.type !== 'cp') {
-                            svg += `<path class="graph-edge" d="M${cx} ${p.y + nodeH} L${cx} ${next.y}" stroke="#999" stroke-width="2" marker-end="url(#ah-flat-gray)"/>`;
-                        }
-                    }
-                }
-            }
-            svg += '</svg>';
-            document.getElementById('flat-graph-container').innerHTML = svg;
         }
 
         function initFlatCycleTime() {
@@ -1538,11 +1818,182 @@
             const fsm = getFlatStateMap();
             flatSvg.querySelectorAll('.graph-node').forEach(node => {
                 const ds = node.getAttribute('data-state');
-                const idx = fsm !== undefined ? fsm[ds] : undefined;
+                const idx = fsm ? fsm[ds] : undefined;
                 node.classList.remove('ct-start-active', 'ct-end-active');
                 if (idx === start) node.classList.add('ct-start-active');
                 else if (idx === end) node.classList.add('ct-end-active');
             });
+        }
+
+        // =============================================
+        // SWIMLANE VIEW
+        // =============================================
+        let swimSelectedVariant = 0;
+
+        // Lane assignment per process (color → lane index)
+        const SWIM_LANES = {
+            'inbox-case': {
+                lanes: [
+                    { id: 'inbox', title: 'Inbox Item Process', colors: ['inbox'] },
+                    { id: 'case', title: 'Case Process', colors: ['case'] }
+                ]
+            },
+            'dev-capa': {
+                lanes: [
+                    { id: 'dev', title: 'Deviation Process', colors: ['dev'] },
+                    { id: 'capa', title: 'CAPA Process', colors: ['capa'] }
+                ]
+            }
+        };
+
+        function toggleSwimVariantRow(index) {
+            swimSelectedVariant = index;
+            const container = document.getElementById('swim-variants');
+            if (container) container.querySelectorAll('.variant-row').forEach((r, i) => {
+                i === index ? r.classList.add('selected') : r.classList.remove('selected');
+            });
+            renderSwimlaneSvg();
+            highlightSwimGraph(
+                parseInt(document.getElementById('swim-ct-start')?.value ?? 0),
+                parseInt(document.getElementById('swim-ct-end')?.value ?? 0)
+            );
+        }
+
+        function initSwimCycleTime() {
+            const startSel = document.getElementById('swim-ct-start');
+            const endSel = document.getElementById('swim-ct-end');
+            const st = getStates();
+            startSel.innerHTML = '';
+            endSel.innerHTML = '';
+            st.forEach((s, i) => {
+                startSel.add(new Option(s.label, i));
+                endSel.add(new Option(s.label, i));
+            });
+            startSel.selectedIndex = 0;
+            endSel.selectedIndex = st.length - 1;
+            updateSwimMetrics();
+        }
+
+        function updateSwimMetrics() {
+            const startIdx = parseInt(document.getElementById('swim-ct-start').value);
+            const endIdx = parseInt(document.getElementById('swim-ct-end').value);
+            const st = getStates();
+            if (startIdx > endIdx) {
+                document.getElementById('swim-avg-metric').textContent = '0.0';
+                document.getElementById('swim-med-metric').textContent = '0.0';
+                highlightSwimGraph(-1, -1);
+                return;
+            }
+            let totalDays = 0;
+            for (let i = startIdx; i <= endIdx; i++) totalDays += st[i].days;
+            document.getElementById('swim-avg-metric').textContent = totalDays.toFixed(1);
+            document.getElementById('swim-med-metric').textContent = (totalDays * 0.85).toFixed(1);
+            highlightSwimGraph(startIdx, endIdx);
+        }
+
+        function highlightSwimGraph(start, end) {
+            const svg = document.getElementById('swim-svg');
+            if (!svg) return;
+            const fsm = getFlatStateMap();
+            svg.querySelectorAll('.graph-node').forEach(node => {
+                const ds = node.getAttribute('data-state');
+                const idx = fsm ? fsm[ds] : undefined;
+                node.classList.remove('ct-start-active', 'ct-end-active');
+                if (idx === start) node.classList.add('ct-start-active');
+                else if (idx === end) node.classList.add('ct-end-active');
+            });
+        }
+
+        function renderSwimlaneSvg() {
+            const proc = getProc();
+            const nodes = proc.flatNodes;
+            const variantNum = swimSelectedVariant + 1;
+            const visible = nodes.filter(n => n.v.includes(variantNum));
+
+            const laneConfig = SWIM_LANES[currentProcess];
+            if (!laneConfig) return;
+
+            // Layout constants
+            const laneW = 260;
+            const laneGap = 20;
+            const headerH = 36;
+            const nodeW = 180;
+            const nodeH = 44;
+            const rowGap = 20;
+            const paddingX = 16;
+            const paddingY = 16;
+            const cpRowH = 40;
+
+            // Determine lane for each visible node by color
+            const laneIdxByColor = {};
+            laneConfig.lanes.forEach((lane, i) => {
+                lane.colors.forEach(c => { laneIdxByColor[c] = i; });
+            });
+
+            // Assign rows to each visible entry chronologically
+            const rows = visible.map((n, i) => ({
+                laneIdx: laneIdxByColor[n.color] ?? 0,
+                node: n,
+                row: i
+            }));
+
+            const numLanes = laneConfig.lanes.length;
+            const totalW = paddingX * 2 + numLanes * laneW + (numLanes - 1) * laneGap;
+            const totalH = paddingY * 2 + headerH + rows.length * (nodeH + rowGap);
+
+            const laneX = (idx) => paddingX + idx * (laneW + laneGap);
+            const laneCx = (idx) => laneX(idx) + laneW / 2;
+
+            const rowY = (r) => paddingY + headerH + r * (nodeH + rowGap);
+
+            let svg = `<svg width="${totalW}" height="${totalH}" viewBox="0 0 ${totalW} ${totalH}" id="swim-svg">
+                <defs>
+                    <marker id="ah-swim-gray" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#999"/></marker>
+                </defs>`;
+
+            // Lane backgrounds and headers
+            laneConfig.lanes.forEach((lane, i) => {
+                const x = laneX(i);
+                svg += `<rect x="${x}" y="${paddingY}" width="${laneW}" height="${totalH - paddingY * 2}" fill="#fafbfc" stroke="#e5e7eb" stroke-width="1" rx="4"/>`;
+                svg += `<rect x="${x}" y="${paddingY}" width="${laneW}" height="${headerH}" fill="#f0f4fa" stroke="#e5e7eb" stroke-width="1" rx="4"/>`;
+                svg += `<rect x="${x}" y="${paddingY + headerH - 1}" width="${laneW}" height="2" fill="#e5e7eb"/>`;
+                svg += `<text x="${x + laneW / 2}" y="${paddingY + headerH / 2 + 4}" text-anchor="middle" font-size="11" font-weight="700" fill="#1d1d1d" letter-spacing="0.5">${lane.title.toUpperCase()}</text>`;
+            });
+
+            // Edges — all regular gray arrows (even lane-crossing ones)
+            for (let i = 0; i < rows.length - 1; i++) {
+                const cur = rows[i];
+                const next = rows[i + 1];
+
+                const fromCx = laneCx(cur.laneIdx);
+                const fromY = rowY(cur.row) + nodeH;
+                const toCx = laneCx(next.laneIdx);
+                const toY = rowY(next.row);
+
+                if (cur.laneIdx === next.laneIdx) {
+                    svg += `<path class="graph-edge" d="M${fromCx} ${fromY} L${toCx} ${toY}" stroke="#999" stroke-width="2" fill="none" marker-end="url(#ah-swim-gray)"/>`;
+                } else {
+                    const midY = (fromY + toY) / 2;
+                    svg += `<path class="graph-edge" d="M${fromCx} ${fromY} L${fromCx} ${midY} L${toCx} ${midY} L${toCx} ${toY}" stroke="#999" stroke-width="2" fill="none" marker-end="url(#ah-swim-gray)"/>`;
+                }
+            }
+
+            // Nodes (no process color coding — lanes provide the visual separation)
+            rows.forEach(r => {
+                const n = r.node;
+                const cx = laneCx(r.laneIdx);
+                const x = cx - nodeW / 2;
+                const y = rowY(r.row);
+
+                svg += `<g class="graph-node" data-state="${n.id}">`;
+                svg += `<rect x="${x}" y="${y}" width="${nodeW}" height="${nodeH}" rx="6" fill="var(--node-default-bg)" stroke="var(--node-default-stroke)" stroke-width="1.5"/>`;
+                svg += `<text x="${cx}" y="${y + 19}" text-anchor="middle" font-size="12" font-weight="600" fill="var(--text-main)">${n.label}</text>`;
+                svg += `<text x="${cx}" y="${y + 34}" text-anchor="middle" font-size="10" fill="var(--text-muted)">${n.stats}</text>`;
+                svg += `</g>`;
+            });
+
+            svg += '</svg>';
+            document.getElementById('swim-graph-container').innerHTML = svg;
         }
 
         // =============================================
@@ -1614,16 +2065,6 @@
         // =============================================
         // INITIALIZATION
         // =============================================
-        // Capture initial inbox-case SVGs from DOM before any switching
-        (function() {
-            const cpSvgEl = document.querySelector('#monitor-tab .joined-graph-container .p-6');
-            SVG_TEMPLATES['inbox-case'].cpSvg = cpSvgEl ? cpSvgEl.innerHTML : '';
-            // flatSvg is now rendered dynamically by renderFlatSvg()
-            SVG_TEMPLATES['inbox-case'].ddParentSvg = document.getElementById('dd-graph-container')?.innerHTML || '';
-            SVG_TEMPLATES['inbox-case'].ddChildHtml = document.getElementById('dd-drawer-body')?.innerHTML || '';
-        })();
-
-        // Initialize with inbox-case
         switchProcess('inbox-case');
     </script>
 </body>
