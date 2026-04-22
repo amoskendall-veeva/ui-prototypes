@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cross-Lane Strategies — Deviation + CAPAs</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/dagre@0.8.5/dist/dagre.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --veeva-blue: #1453b8;
+        --veeva-orange: #f8972b;
+        --text-main: #1d1d1d;
+        --text-muted: #6b7280;
+        --border: #e5e7eb;
+    }
+    body {
+        font-family: 'Roboto', sans-serif;
+        color: var(--text-main);
+        background: #f8fafc;
+    }
+    h1, h2, h3 { margin: 0; }
+    h1 { font-size: 22px; font-weight: 700; }
+    h2 { font-size: 16px; font-weight: 700; }
+    h3 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #4b5563; }
+    table { border-collapse: collapse; width: 100%; font-size: 12px; }
+    th { background: #f3f4f6; text-align: left; font-weight: 600; color: #374151; padding: 6px 10px; border: 1px solid var(--border); }
+    td { padding: 5px 10px; border: 1px solid var(--border); }
+    tr:nth-child(even) td { background: #fafbfc; }
+    .pill { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+    .pill-parent { background: #eef3fb; color: #1e40af; }
+    .pill-child  { background: #fdf4e3; color: #92400e; }
+    .pill-c1 { background: #dcfce7; color: #166534; }
+    .pill-c2 { background: #fce7f3; color: #9d174d; }
+    .pill-c3 { background: #e0e7ff; color: #3730a3; }
+    .cross-row { background: #fffbeb !important; }
+    details > summary { cursor: pointer; font-weight: 600; color: #4b5563; padding: 6px 0; }
+    details > summary:hover { color: #1f2937; }
+    .section-card { background: white; border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 20px; }
+    .small { font-size: 11px; color: var(--text-muted); }
+    .prose { font-size: 13px; line-height: 1.5; color: #374151; }
+    .graph-container { background: white; border: 1px solid var(--border); border-radius: 6px; overflow: auto; }
+    .graph-container svg { display: block; }
+    .legend { font-size: 11px; color: var(--text-muted); margin-top: 8px; }
+    .legend-item { display: inline-flex; align-items: center; gap: 4px; margin-right: 12px; }
+    .legend-swatch { width: 14px; height: 10px; border: 1px solid #d1d5db; border-radius: 2px; }
+</style>
+</head>
+<body class="min-h-screen">
+
+<div class="max-w-[1400px] mx-auto p-6">
+
+    <header class="mb-6">
+        <div class="text-xs text-[var(--veeva-blue)] uppercase font-semibold tracking-wider">Analysis Prototype</div>
+        <h1>Cross-Lane Strategies — Deviation + CAPAs</h1>
+        <p class="prose mt-2 max-w-4xl">
+            Given a 1:many process timeline (1 Deviation with 3 CAPAs), this page compares three strategies for deriving which cross-lane handoffs appear in the aggregated graph. Each strategy operates on the master transition table <strong>T</strong> (sorted chronologically by state-entry time, ties broken toward Parent). Tables show intermediate outputs; graphs show the Step 4 aggregation unioning the strategy's cross-lane edges with T's in-lane transitions and counting occurrences.
+        </p>
+    </header>
+
+    <!-- Timeline visualization -->
+    <section class="section-card">
+        <h2 class="mb-1">Timeline</h2>
+        <p class="small mb-3">Each box spans from the state's entry time (its row in T) to the next state's entry time for that object. Terminal states (Closed) get a 1-unit width.</p>
+        <div class="overflow-x-auto">
+            <div id="timeline-container"></div>
+        </div>
+    </section>
+
+    <!-- Table T -->
+    <section class="section-card">
+        <h2 class="mb-1">Table T — master transition table</h2>
+        <p class="small mb-3">24 rows, sorted by relative timestamp. Creation rows have <code class="bg-gray-100 px-1 rounded">start = —</code>.</p>
+        <div id="table-t-container"></div>
+    </section>
+
+    <!-- Strategy 1 -->
+    <section class="section-card">
+        <h2 class="mb-1">Strategy 1 — Adjacent P↔C pairs in T</h2>
+        <p class="prose mb-4">
+            Walk consecutive rows of T. For every adjacent pair where one row is Parent and the other is a Child, emit a cross-lane edge
+            <code class="bg-gray-100 px-1 rounded">end_state(row_N) → end_state(row_N+1)</code>.
+        </p>
+        <div class="grid grid-cols-12 gap-5">
+            <div class="col-span-5 space-y-5">
+                <div>
+                    <h3 class="mb-2">Strategy 1 output</h3>
+                    <div id="strategy-1-output-container"></div>
+                </div>
+                <div>
+                    <h3 class="mb-2">Aggregated (S1 ∪ T)</h3>
+                    <p class="small mb-2">In-lane edges from T + cross-lane edges from S1, grouped by (start, end) with count.</p>
+                    <div id="strategy-1-agg-container"></div>
+                </div>
+            </div>
+            <div class="col-span-7">
+                <h3 class="mb-2">Graph</h3>
+                <div class="graph-container" id="strategy-1-graph"></div>
+                <div class="legend">
+                    <span class="legend-item"><span class="legend-swatch" style="background:#eef3fb;border-color:#bfdbfe"></span>Parent lane</span>
+                    <span class="legend-item"><span class="legend-swatch" style="background:#fdf4e3;border-color:#fde68a"></span>Child lane (aggregated)</span>
+                    <span class="legend-item">Edge thickness = count. Numbers on edges = count.</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Strategy 2 -->
+    <section class="section-card">
+        <h2 class="mb-1">Strategy 2 — UNION ALL of Parent + one child</h2>
+        <p class="prose mb-4">
+            Filter T to {Parent + C1}, {Parent + C2}, {Parent + C3} separately. Run Strategy 1 on each filtered table. UNION ALL the three outputs, then aggregate (start, end) with count. The count indicates how many of the three pairwise analyses contained that edge.
+        </p>
+
+        <details class="mb-4">
+            <summary>Per-child filtered Strategy 1 outputs</summary>
+            <div class="grid grid-cols-3 gap-4 mt-3">
+                <div>
+                    <h3 class="mb-2">P + C1</h3>
+                    <div id="strategy-2-pc1-container"></div>
+                </div>
+                <div>
+                    <h3 class="mb-2">P + C2</h3>
+                    <div id="strategy-2-pc2-container"></div>
+                </div>
+                <div>
+                    <h3 class="mb-2">P + C3</h3>
+                    <div id="strategy-2-pc3-container"></div>
+                </div>
+            </div>
+        </details>
+
+        <div class="grid grid-cols-12 gap-5">
+            <div class="col-span-5 space-y-5">
+                <div>
+                    <h3 class="mb-2">UNION ALL → aggregated cross-lane edges</h3>
+                    <div id="strategy-2-union-container"></div>
+                </div>
+                <div>
+                    <h3 class="mb-2">Aggregated (S2 ∪ T)</h3>
+                    <div id="strategy-2-agg-container"></div>
+                </div>
+            </div>
+            <div class="col-span-7">
+                <h3 class="mb-2">Graph</h3>
+                <div class="graph-container" id="strategy-2-graph"></div>
+                <div class="legend">
+                    <span class="legend-item">Edge thickness scales with count (in-lane <em>or</em> cross-lane).</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Strategy 3 -->
+    <section class="section-card">
+        <h2 class="mb-1">Strategy 3 — Intersection of Parent + one child</h2>
+        <p class="prose mb-4">
+            Same filtered Strategy 1 outputs as S2. INTERSECT the three edge sets — keep only edges that appear in every pairwise analysis.
+        </p>
+
+        <div class="grid grid-cols-12 gap-5">
+            <div class="col-span-5 space-y-5">
+                <div>
+                    <h3 class="mb-2">Intersection (cross-lane edges)</h3>
+                    <div id="strategy-3-intersect-container"></div>
+                </div>
+                <div>
+                    <h3 class="mb-2">Aggregated (S3 ∪ T)</h3>
+                    <div id="strategy-3-agg-container"></div>
+                </div>
+            </div>
+            <div class="col-span-7">
+                <h3 class="mb-2">Graph</h3>
+                <div class="graph-container" id="strategy-3-graph"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Comparison summary -->
+    <section class="section-card">
+        <h2 class="mb-2">At-a-glance comparison</h2>
+        <div id="comparison-container"></div>
+    </section>
+
+</div>
+
+<script>
+// ============================================================
+// DATA
+// ============================================================
+
+// Table T (finalized by user)
+const tableT = [
+    {t:'t1',  object:'Parent', start:'—',              end:'Define Team'},
+    {t:'t2',  object:'Parent', start:'Define Team',    end:'IISR'},
+    {t:'t3',  object:'C1',     start:'—',              end:'Define Team'},
+    {t:'t4',  object:'C2',     start:'—',              end:'Define Team'},
+    {t:'t5',  object:'C3',     start:'—',              end:'Define Team'},
+    {t:'t6',  object:'Parent', start:'IISR',           end:'In Approval'},
+    {t:'t7',  object:'C1',     start:'Define Team',    end:'Pending Review'},
+    {t:'t8',  object:'C2',     start:'Define Team',    end:'Pending Review'},
+    {t:'t9',  object:'C3',     start:'Define Team',    end:'Pending Review'},
+    {t:'t10', object:'C2',     start:'Pending Review', end:'Ready for Impl'},
+    {t:'t11', object:'C3',     start:'Pending Review', end:'Ready for Impl'},
+    {t:'t12', object:'Parent', start:'In Approval',    end:'In CAPA'},
+    {t:'t13', object:'C1',     start:'Pending Review', end:'In Implementation'},
+    {t:'t14', object:'C2',     start:'Ready for Impl', end:'In Implementation'},
+    {t:'t15', object:'C3',     start:'Ready for Impl', end:'In Implementation'},
+    {t:'t16', object:'C2',     start:'In Implementation', end:'In Approval'},
+    {t:'t17', object:'C1',     start:'In Implementation', end:'In Approval'},
+    {t:'t18', object:'C3',     start:'In Implementation', end:'In Approval'},
+    {t:'t19', object:'C2',     start:'In Approval',    end:'In Implementation'},
+    {t:'t20', object:'C1',     start:'In Approval',    end:'Closed'},
+    {t:'t21', object:'C3',     start:'In Approval',    end:'Closed'},
+    {t:'t22', object:'C2',     start:'In Implementation', end:'In Approval'},
+    {t:'t23', object:'C2',     start:'In Approval',    end:'Closed'},
+    {t:'t24', object:'Parent', start:'In CAPA',        end:'Closed'}
+];
+
+// Strategy 1 output
+const s1Output = [
+    { pair:'t2→t3',   from:'P:IISR',              to:'C:Define Team' },
+    { pair:'t5→t6',   from:'C:Define Team',       to:'P:In Approval' },
+    { pair:'t6→t7',   from:'P:In Approval',       to:'C:Pending Review' },
+    { pair:'t11→t12', from:'C:Ready for Impl',    to:'P:In CAPA' },
+    { pair:'t12→t13', from:'P:In CAPA',           to:'C:In Implementation' },
+    { pair:'t23→t24', from:'C:Closed',            to:'P:Closed' }
+];
+
+// Strategy 2 per-child outputs
+const s2PerChild = {
+    'P+C1': [
+        { pair:'t2→t3',   from:'P:IISR',              to:'C:Define Team' },
+        { pair:'t3→t6',   from:'C:Define Team',       to:'P:In Approval' },
+        { pair:'t6→t7',   from:'P:In Approval',       to:'C:Pending Review' },
+        { pair:'t7→t12',  from:'C:Pending Review',    to:'P:In CAPA' },
+        { pair:'t12→t13', from:'P:In CAPA',           to:'C:In Implementation' },
+        { pair:'t20→t24', from:'C:Closed',            to:'P:Closed' }
+    ],
+    'P+C2': [
+        { pair:'t2→t4',   from:'P:IISR',              to:'C:Define Team' },
+        { pair:'t4→t6',   from:'C:Define Team',       to:'P:In Approval' },
+        { pair:'t6→t8',   from:'P:In Approval',       to:'C:Pending Review' },
+        { pair:'t10→t12', from:'C:Ready for Impl',    to:'P:In CAPA' },
+        { pair:'t12→t14', from:'P:In CAPA',           to:'C:In Implementation' },
+        { pair:'t23→t24', from:'C:Closed',            to:'P:Closed' }
+    ],
+    'P+C3': [
+        { pair:'t2→t5',   from:'P:IISR',              to:'C:Define Team' },
+        { pair:'t5→t6',   from:'C:Define Team',       to:'P:In Approval' },
+        { pair:'t6→t9',   from:'P:In Approval',       to:'C:Pending Review' },
+        { pair:'t11→t12', from:'C:Ready for Impl',    to:'P:In CAPA' },
+        { pair:'t12→t15', from:'P:In CAPA',           to:'C:In Implementation' },
+        { pair:'t21→t24', from:'C:Closed',            to:'P:Closed' }
+    ]
+};
+
+// Strategy 2 UNION ALL aggregated
+const s2Union = [
+    { from:'P:IISR',              to:'C:Define Team',       count:3, contributors:'C1, C2, C3' },
+    { from:'C:Define Team',       to:'P:In Approval',       count:3, contributors:'C1, C2, C3' },
+    { from:'P:In Approval',       to:'C:Pending Review',    count:3, contributors:'C1, C2, C3' },
+    { from:'C:Pending Review',    to:'P:In CAPA',           count:1, contributors:'C1' },
+    { from:'C:Ready for Impl',    to:'P:In CAPA',           count:2, contributors:'C2, C3' },
+    { from:'P:In CAPA',           to:'C:In Implementation', count:3, contributors:'C1, C2, C3' },
+    { from:'C:Closed',            to:'P:Closed',            count:3, contributors:'C1, C2, C3' }
+];
+
+// Strategy 3 intersection
+const s3Intersection = [
+    { from:'P:IISR',          to:'C:Define Team',       inAll:'✓' },
+    { from:'C:Define Team',   to:'P:In Approval',       inAll:'✓' },
+    { from:'P:In Approval',   to:'C:Pending Review',    inAll:'✓' },
+    { from:'P:In CAPA',       to:'C:In Implementation', inAll:'✓' },
+    { from:'C:Closed',        to:'P:Closed',            inAll:'✓' }
+];
+
+// ============================================================
+// GRAPH DATA (for rendering)
+// ============================================================
+
+const parentNodes = [
+    { id:'P_DefineTeam',   label:'Define Team' },
+    { id:'P_IISR',         label:'IISR' },
+    { id:'P_InApproval',   label:'In Approval' },
+    { id:'P_InCAPA',       label:'In CAPA' },
+    { id:'P_Closed',       label:'Closed' }
+];
+
+const childNodes = [
+    { id:'C_DefineTeam',       label:'Define Team' },
+    { id:'C_PendingReview',    label:'Pending Review' },
+    { id:'C_ReadyForImpl',     label:'Ready for Impl' },
+    { id:'C_InImplementation', label:'In Implementation' },
+    { id:'C_InApproval',       label:'In Approval' },
+    { id:'C_Closed',           label:'Closed' }
+];
+
+// In-lane edges with counts from T (aggregated)
+const inLaneParentEdges = [
+    { from:'P_DefineTeam',  to:'P_IISR',        count:1 },
+    { from:'P_IISR',        to:'P_InApproval',  count:1 },
+    { from:'P_InApproval',  to:'P_InCAPA',      count:1 },
+    { from:'P_InCAPA',      to:'P_Closed',      count:1 }
+];
+
+const inLaneChildEdges = [
+    { from:'C_DefineTeam',       to:'C_PendingReview',     count:3 },
+    { from:'C_PendingReview',    to:'C_InImplementation',  count:1 },
+    { from:'C_PendingReview',    to:'C_ReadyForImpl',      count:2 },
+    { from:'C_ReadyForImpl',     to:'C_InImplementation',  count:2 },
+    { from:'C_InImplementation', to:'C_InApproval',        count:4 },
+    { from:'C_InApproval',       to:'C_InImplementation',  count:1 },
+    { from:'C_InApproval',       to:'C_Closed',            count:3 }
+];
+
+// Cross-lane edges per strategy
+const s1CrossEdges = [
+    { from:'P_IISR',          to:'C_DefineTeam',        count:1 },
+    { from:'C_DefineTeam',    to:'P_InApproval',        count:1 },
+    { from:'P_InApproval',    to:'C_PendingReview',     count:1 },
+    { from:'C_ReadyForImpl',  to:'P_InCAPA',            count:1 },
+    { from:'P_InCAPA',        to:'C_InImplementation',  count:1 },
+    { from:'C_Closed',        to:'P_Closed',            count:1 }
+];
+
+const s2CrossEdges = [
+    { from:'P_IISR',           to:'C_DefineTeam',        count:3 },
+    { from:'C_DefineTeam',     to:'P_InApproval',        count:3 },
+    { from:'P_InApproval',     to:'C_PendingReview',     count:3 },
+    { from:'C_PendingReview',  to:'P_InCAPA',            count:1 },
+    { from:'C_ReadyForImpl',   to:'P_InCAPA',            count:2 },
+    { from:'P_InCAPA',         to:'C_InImplementation',  count:3 },
+    { from:'C_Closed',         to:'P_Closed',            count:3 }
+];
+
+const s3CrossEdges = [
+    { from:'P_IISR',          to:'C_DefineTeam',        count:1 },
+    { from:'C_DefineTeam',    to:'P_InApproval',        count:1 },
+    { from:'P_InApproval',    to:'C_PendingReview',     count:1 },
+    { from:'P_InCAPA',        to:'C_InImplementation',  count:1 },
+    { from:'C_Closed',        to:'P_Closed',            count:1 }
+];
+
+// ============================================================
+// TIMELINE RENDERING
+// ============================================================
+
+function computeStateDurations() {
+    const byObj = {};
+    tableT.forEach(row => {
+        if (!byObj[row.object]) byObj[row.object] = [];
+        byObj[row.object].push(row);
+    });
+    const result = {};
+    for (const obj in byObj) {
+        const events = byObj[obj];
+        const intervals = [];
+        for (let i = 0; i < events.length; i++) {
+            const e = events[i];
+            const startT = parseInt(e.t.slice(1));
+            const endT = i < events.length - 1 ? parseInt(events[i+1].t.slice(1)) : startT + 1;
+            intervals.push({ state: e.end, startT, endT, duration: endT - startT });
+        }
+        result[obj] = intervals;
+    }
+    return result;
+}
+
+function renderTimeline(containerId) {
+    const TIME_UNIT = 32;
+    const T_MAX = 25; // covers t1..t24 + terminal
+    const ROW_H = 50;
+    const ROW_GAP = 6;
+    const BOX_H = 36;
+    const HEADER_H = 36;
+    const LABEL_W = 80;
+    const PAD = 14;
+
+    const objects = ['Parent', 'C1', 'C2', 'C3'];
+    const intervals = computeStateDurations();
+
+    const totalW = LABEL_W + PAD + (T_MAX - 1) * TIME_UNIT + PAD;
+    const totalH = HEADER_H + objects.length * (ROW_H + ROW_GAP) + PAD;
+
+    let svg = `<svg width="${totalW}" height="${totalH}" viewBox="0 0 ${totalW} ${totalH}" xmlns="http://www.w3.org/2000/svg">`;
+    svg += `<defs><marker id="tl-arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><polygon points="0 0, 10 4, 0 8" fill="#9ca3af"/></marker></defs>`;
+
+    // Timeline arrow header
+    const timeAxisY = HEADER_H / 2 + 6;
+    const timelineStart = LABEL_W + PAD;
+    const timelineEnd = totalW - PAD - 8;
+    svg += `<line x1="${timelineStart}" y1="${timeAxisY}" x2="${timelineEnd}" y2="${timeAxisY}" stroke="#9ca3af" stroke-width="1.5" marker-end="url(#tl-arrow)"/>`;
+    svg += `<text x="${(timelineStart + timelineEnd)/2}" y="${timeAxisY - 8}" text-anchor="middle" font-size="10" font-weight="700" fill="#6b7280" letter-spacing="1">TIMELINE</text>`;
+
+    // Tick marks for t values (subtle)
+    for (let i = 1; i <= T_MAX; i++) {
+        const x = LABEL_W + PAD + (i - 1) * TIME_UNIT;
+        svg += `<line x1="${x}" y1="${HEADER_H}" x2="${x}" y2="${totalH - PAD}" stroke="#f3f4f6" stroke-width="0.5"/>`;
+    }
+    // Major ticks every 4
+    for (let i = 1; i <= T_MAX; i++) {
+        if (i === 1 || i % 4 === 0 || i === T_MAX) {
+            const x = LABEL_W + PAD + (i - 1) * TIME_UNIT;
+            svg += `<text x="${x}" y="${HEADER_H - 4}" text-anchor="middle" font-size="9" fill="#9ca3af">t${i}</text>`;
+        }
+    }
+
+    // Object rows
+    objects.forEach((obj, idx) => {
+        const rowY = HEADER_H + idx * (ROW_H + ROW_GAP);
+        const isParent = obj === 'Parent';
+        const stripeFill = isParent ? '#f5f9ff' : '#fffbf2';
+        svg += `<rect x="${LABEL_W}" y="${rowY}" width="${totalW - LABEL_W - PAD}" height="${ROW_H}" fill="${stripeFill}" stroke="#e5e7eb" stroke-width="0.5" rx="3"/>`;
+        svg += `<text x="${LABEL_W - 10}" y="${rowY + ROW_H/2 + 4}" text-anchor="end" font-size="13" font-weight="700" fill="#1d1d1d">${obj}</text>`;
+
+        const objIntervals = intervals[obj] || [];
+        objIntervals.forEach(iv => {
+            const boxX = LABEL_W + PAD + (iv.startT - 1) * TIME_UNIT;
+            const boxW = iv.duration * TIME_UNIT - 4;
+            const boxY = rowY + (ROW_H - BOX_H) / 2;
+
+            const fill = isParent ? '#dbeafe' : '#fef3c7';
+            const stroke = isParent ? '#60a5fa' : '#f59e0b';
+            const textColor = isParent ? '#1e3a8a' : '#7c2d12';
+
+            svg += `<rect x="${boxX}" y="${boxY}" width="${boxW}" height="${BOX_H}" rx="${BOX_H/2}" fill="${fill}" stroke="${stroke}" stroke-width="1.2"/>`;
+
+            // Label sizing
+            let label = iv.state;
+            let fontSize = 11;
+            const approxCharW = 5.5;
+            if (label.length * approxCharW > boxW - 10) {
+                fontSize = 10;
+                if (label.length * 5 > boxW - 10) {
+                    const maxChars = Math.max(0, Math.floor((boxW - 10) / 5));
+                    if (maxChars >= 4) label = label.slice(0, maxChars - 1) + '…';
+                    else label = '';
+                }
+            }
+            if (label) {
+                svg += `<text x="${boxX + boxW/2}" y="${boxY + BOX_H/2 + 4}" text-anchor="middle" font-size="${fontSize}" font-weight="500" fill="${textColor}">${label}</text>`;
+            }
+        });
+    });
+
+    svg += '</svg>';
+    document.getElementById(containerId).innerHTML = svg;
+}
+
+// ============================================================
+// TABLE RENDERING
+// ============================================================
+
+function objectPill(obj) {
+    const cls = obj === 'Parent' ? 'pill-parent' :
+                obj === 'C1' ? 'pill-c1' :
+                obj === 'C2' ? 'pill-c2' :
+                obj === 'C3' ? 'pill-c3' : 'pill-child';
+    return `<span class="pill ${cls}">${obj}</span>`;
+}
+
+function renderTableT(containerId) {
+    let html = '<table><thead><tr><th>t</th><th>object</th><th>start_state</th><th>end_state</th></tr></thead><tbody>';
+    tableT.forEach(row => {
+        html += `<tr>
+            <td class="font-mono">${row.t}</td>
+            <td>${objectPill(row.object)}</td>
+            <td>${row.start}</td>
+            <td>${row.end}</td>
+        </tr>`;
+    });
+    html += '</tbody></table>';
+    document.getElementById(containerId).innerHTML = html;
+}
+
+function renderStrategyOutput(containerId, rows, opts = {}) {
+    const showPair = opts.showPair !== false && rows[0] && 'pair' in rows[0];
+    const showCount = opts.showCount && rows[0] && 'count' in rows[0];
+    const showContrib = opts.showContrib && rows[0] && 'contributors' in rows[0];
+    const showInAll = opts.showInAll && rows[0] && 'inAll' in rows[0];
+
+    let html = '<table><thead><tr>';
+    if (showPair) html += '<th>pair</th>';
+    html += '<th>from_state</th><th>to_state</th>';
+    if (showCount) html += '<th>count</th>';
+    if (showContrib) html += '<th>contributors</th>';
+    if (showInAll) html += '<th>in all 3?</th>';
+    html += '</tr></thead><tbody>';
+
+    rows.forEach(row => {
+        html += '<tr>';
+        if (showPair) html += `<td class="font-mono small">${row.pair}</td>`;
+        html += `<td>${row.from}</td><td>${row.to}</td>`;
+        if (showCount) html += `<td class="font-mono text-center">${row.count}</td>`;
+        if (showContrib) html += `<td class="small">${row.contributors}</td>`;
+        if (showInAll) html += `<td class="text-center">${row.inAll}</td>`;
+        html += '</tr>';
+    });
+    html += '</tbody></table>';
+    document.getElementById(containerId).innerHTML = html;
+}
+
+// Compute aggregated (S ∪ T) table: all in-lane + strategy cross-lane edges, grouped with counts
+function computeAggregated(crossEdges) {
+    // Map: "from||to" → { from, to, count, kind }
+    const agg = new Map();
+
+    function add(from, to, count, kind) {
+        const key = `${from}||${to}`;
+        if (agg.has(key)) {
+            agg.get(key).count += count;
+        } else {
+            agg.set(key, { from, to, count, kind });
+        }
+    }
+
+    // Translate lane-prefixed graph IDs to display strings
+    const label = id => {
+        const n = [...parentNodes, ...childNodes].find(x => x.id === id);
+        const lane = id.startsWith('P_') ? 'P' : 'C';
+        return n ? `${lane}:${n.label}` : id;
+    };
+
+    // In-lane parent
+    inLaneParentEdges.forEach(e => add(label(e.from), label(e.to), e.count, 'parent in-lane'));
+    // In-lane child
+    inLaneChildEdges.forEach(e => add(label(e.from), label(e.to), e.count, 'child in-lane'));
+    // Cross-lane from strategy
+    crossEdges.forEach(e => add(label(e.from), label(e.to), e.count, 'cross-lane'));
+
+    return Array.from(agg.values());
+}
+
+function renderAggregated(containerId, crossEdges) {
+    const rows = computeAggregated(crossEdges);
+    let html = '<table><thead><tr><th>from_state</th><th>to_state</th><th>count</th><th>kind</th></tr></thead><tbody>';
+    rows.forEach(r => {
+        const crossCls = r.kind === 'cross-lane' ? 'cross-row' : '';
+        html += `<tr class="${crossCls}">
+            <td>${r.from}</td>
+            <td>${r.to}</td>
+            <td class="font-mono text-center">${r.count}</td>
+            <td class="small">${r.kind}</td>
+        </tr>`;
+    });
+    html += '</tbody></table>';
+    document.getElementById(containerId).innerHTML = html;
+}
+
+// ============================================================
+// GRAPH RENDERING (swim lanes with dagre)
+// ============================================================
+
+function renderGraph(containerId, crossEdges) {
+    const NODE_W = 150;
+    const NODE_H = 36;
+    const LANE_GAP = 140;
+    const HEADER_H = 28;
+    const MARGIN = 14;
+    const LANE_PAD = 18;
+
+    // Parent lane
+    const gP = new dagre.graphlib.Graph();
+    gP.setGraph({ rankdir:'TB', nodesep:22, ranksep:44, marginx:8, marginy:8 });
+    gP.setDefaultEdgeLabel(() => ({}));
+    parentNodes.forEach(n => gP.setNode(n.id, { width:NODE_W, height:NODE_H, label:n.label }));
+    inLaneParentEdges.forEach(e => gP.setEdge(e.from, e.to));
+    dagre.layout(gP);
+
+    // Child lane
+    const gC = new dagre.graphlib.Graph();
+    gC.setGraph({ rankdir:'TB', nodesep:22, ranksep:44, marginx:8, marginy:8 });
+    gC.setDefaultEdgeLabel(() => ({}));
+    childNodes.forEach(n => gC.setNode(n.id, { width:NODE_W, height:NODE_H, label:n.label }));
+    inLaneChildEdges.forEach(e => gC.setEdge(e.from, e.to));
+    dagre.layout(gC);
+
+    const pBbox = gP.graph();
+    const cBbox = gC.graph();
+
+    const parentLaneW = pBbox.width + LANE_PAD * 2;
+    const childLaneW = cBbox.width + LANE_PAD * 2;
+    const laneH = Math.max(pBbox.height, cBbox.height) + LANE_PAD * 2;
+
+    const parentLaneX = MARGIN;
+    const childLaneX = MARGIN + parentLaneW + LANE_GAP;
+    const totalW = childLaneX + childLaneW + MARGIN;
+    const totalH = MARGIN + HEADER_H + laneH + MARGIN;
+
+    const parentContentX = parentLaneX + LANE_PAD;
+    const childContentX = childLaneX + LANE_PAD;
+    const contentY = MARGIN + HEADER_H + LANE_PAD;
+
+    // Compute max count across ALL edges (in-lane + cross-lane) for width scaling
+    const allCounts = [
+        ...inLaneParentEdges.map(e => e.count),
+        ...inLaneChildEdges.map(e => e.count),
+        ...crossEdges.map(e => e.count)
+    ];
+    const maxC = Math.max(...allCounts);
+    const minC = Math.min(...allCounts);
+    const widthFor = c => maxC === minC ? 2 : 1.2 + ((c - minC) / (maxC - minC)) * 4.2;
+
+    let svg = `<svg width="${totalW}" height="${totalH}" viewBox="0 0 ${totalW} ${totalH}" xmlns="http://www.w3.org/2000/svg">`;
+    svg += `<defs><marker id="ah-g-${containerId}" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#6b7280"/></marker></defs>`;
+
+    // Lane backgrounds
+    svg += `<rect x="${parentLaneX}" y="${MARGIN}" width="${parentLaneW}" height="${HEADER_H + laneH}" fill="#eef3fb" stroke="#bfdbfe" rx="4"/>`;
+    svg += `<rect x="${parentLaneX}" y="${MARGIN}" width="${parentLaneW}" height="${HEADER_H}" fill="#dbeafe" stroke="#bfdbfe" rx="4"/>`;
+    svg += `<text x="${parentLaneX + parentLaneW/2}" y="${MARGIN + HEADER_H/2 + 4}" text-anchor="middle" font-size="11" font-weight="700" fill="#1e40af" letter-spacing="0.5">PARENT (Deviation)</text>`;
+
+    svg += `<rect x="${childLaneX}" y="${MARGIN}" width="${childLaneW}" height="${HEADER_H + laneH}" fill="#fffbeb" stroke="#fde68a" rx="4"/>`;
+    svg += `<rect x="${childLaneX}" y="${MARGIN}" width="${childLaneW}" height="${HEADER_H}" fill="#fef3c7" stroke="#fde68a" rx="4"/>`;
+    svg += `<text x="${childLaneX + childLaneW/2}" y="${MARGIN + HEADER_H/2 + 4}" text-anchor="middle" font-size="11" font-weight="700" fill="#92400e" letter-spacing="0.5">CHILD (CAPAs, aggregated)</text>`;
+
+    // Edge helper
+    function drawEdge(pts, count) {
+        let d = `M${pts[0].x} ${pts[0].y}`;
+        for (let i = 1; i < pts.length; i++) d += ` L${pts[i].x} ${pts[i].y}`;
+        const w = widthFor(count);
+        let path = `<path d="${d}" stroke="#6b7280" stroke-width="${w}" fill="none" marker-end="url(#ah-g-${containerId})"/>`;
+        // label
+        const mid = pts[Math.floor(pts.length / 2)];
+        let prev = pts[Math.max(0, Math.floor(pts.length / 2) - 1)];
+        const mx = (prev.x + mid.x) / 2;
+        const my = (prev.y + mid.y) / 2;
+        const lx = pts.length % 2 === 0 ? mx : mid.x;
+        const ly = pts.length % 2 === 0 ? my : mid.y;
+        const labelW = String(count).length * 7 + 10;
+        path += `<rect x="${lx - labelW/2}" y="${ly - 7}" width="${labelW}" height="14" rx="7" fill="white" stroke="#d1d5db" stroke-width="0.6"/>`;
+        path += `<text x="${lx}" y="${ly + 3}" text-anchor="middle" font-size="9" font-weight="600" fill="#4b5563">${count}</text>`;
+        return path;
+    }
+
+    // Parent in-lane edges
+    inLaneParentEdges.forEach(e => {
+        const edge = gP.edge(e.from, e.to);
+        if (!edge || !edge.points) return;
+        const pts = edge.points.map(p => ({ x: p.x + parentContentX, y: p.y + contentY }));
+        svg += drawEdge(pts, e.count);
+    });
+
+    // Child in-lane edges
+    inLaneChildEdges.forEach(e => {
+        const edge = gC.edge(e.from, e.to);
+        if (!edge || !edge.points) return;
+        const pts = edge.points.map(p => ({ x: p.x + childContentX, y: p.y + contentY }));
+        svg += drawEdge(pts, e.count);
+    });
+
+    // Cross-lane edges (drawn as smooth curves between lanes)
+    crossEdges.forEach(e => {
+        const fromPos = e.from.startsWith('P_') ? gP.node(e.from) : gC.node(e.from);
+        const toPos = e.to.startsWith('P_') ? gP.node(e.to) : gC.node(e.to);
+        const fromContentX = e.from.startsWith('P_') ? parentContentX : childContentX;
+        const toContentX = e.to.startsWith('P_') ? parentContentX : childContentX;
+        if (!fromPos || !toPos) return;
+
+        // Exit source node at the side facing target lane
+        const srcCx = fromContentX + fromPos.x;
+        const srcCy = contentY + fromPos.y;
+        const dstCx = toContentX + toPos.x;
+        const dstCy = contentY + toPos.y;
+        const srcX = fromContentX < toContentX ? srcCx + fromPos.width/2 : srcCx - fromPos.width/2;
+        const dstX = fromContentX < toContentX ? dstCx - toPos.width/2 : dstCx + toPos.width/2;
+        const srcY = srcCy;
+        const dstY = dstCy;
+
+        const midX = (srcX + dstX) / 2;
+        const d = `M${srcX} ${srcY} C${midX} ${srcY}, ${midX} ${dstY}, ${dstX} ${dstY}`;
+        const w = widthFor(e.count);
+        svg += `<path d="${d}" stroke="#6b7280" stroke-width="${w}" fill="none" marker-end="url(#ah-g-${containerId})"/>`;
+
+        // Label at the midpoint of the cubic curve (approximate)
+        const labelX = midX;
+        const labelY = (srcY + dstY) / 2;
+        const labelW = String(e.count).length * 7 + 10;
+        svg += `<rect x="${labelX - labelW/2}" y="${labelY - 7}" width="${labelW}" height="14" rx="7" fill="white" stroke="#d1d5db" stroke-width="0.6"/>`;
+        svg += `<text x="${labelX}" y="${labelY + 3}" text-anchor="middle" font-size="9" font-weight="600" fill="#4b5563">${e.count}</text>`;
+    });
+
+    // Parent nodes
+    parentNodes.forEach(n => {
+        const pos = gP.node(n.id);
+        const x = parentContentX + pos.x - pos.width/2;
+        const y = contentY + pos.y - pos.height/2;
+        svg += `<g><rect x="${x}" y="${y}" width="${pos.width}" height="${pos.height}" rx="6" fill="white" stroke="#64748b" stroke-width="1.5"/>`;
+        svg += `<text x="${parentContentX + pos.x}" y="${contentY + pos.y + 4}" text-anchor="middle" font-size="12" font-weight="600" fill="#1d1d1d">${n.label}</text></g>`;
+    });
+
+    // Child nodes
+    childNodes.forEach(n => {
+        const pos = gC.node(n.id);
+        const x = childContentX + pos.x - pos.width/2;
+        const y = contentY + pos.y - pos.height/2;
+        svg += `<g><rect x="${x}" y="${y}" width="${pos.width}" height="${pos.height}" rx="6" fill="white" stroke="#64748b" stroke-width="1.5"/>`;
+        svg += `<text x="${childContentX + pos.x}" y="${contentY + pos.y + 4}" text-anchor="middle" font-size="12" font-weight="600" fill="#1d1d1d">${n.label}</text></g>`;
+    });
+
+    svg += '</svg>';
+    document.getElementById(containerId).innerHTML = svg;
+}
+
+// ============================================================
+// COMPARISON TABLE
+// ============================================================
+
+function renderComparison(containerId) {
+    const strategies = [
+        { name:'Strategy 1', desc:'Adjacent P↔C pairs in T', edges:s1CrossEdges.length, total:6, notes:'Sensitive to chronological ordering; picks up handoffs that span children (e.g. C:Ready for Impl → P:In CAPA because C2/C3 had already advanced past PR).' },
+        { name:'Strategy 2', desc:'UNION ALL of pairwise filtered outputs', edges:s2Union.length, total:7, notes:'Counts surface agreement strength. Universal handoffs (IISR→DT, DT→InApp, InApp→PR, InCAPA→InImpl, Closed→Closed) all have count 3. The split between PR→InCAPA (count 1, from C1) and RFI→InCAPA (count 2, from C2/C3) is the discriminating edge.' },
+        { name:'Strategy 3', desc:'Intersection of pairwise filtered outputs', edges:s3Intersection.length, total:5, notes:'Most conservative. Drops both PR→InCAPA and RFI→InCAPA because they\'re complementary across children. Keeps the 5 universal handoffs.' }
+    ];
+
+    let html = '<table><thead><tr><th>Strategy</th><th>Method</th><th>Cross-lane edges</th><th>Notes</th></tr></thead><tbody>';
+    strategies.forEach(s => {
+        html += `<tr>
+            <td class="font-bold">${s.name}</td>
+            <td>${s.desc}</td>
+            <td class="font-mono text-center">${s.total}</td>
+            <td class="prose">${s.notes}</td>
+        </tr>`;
+    });
+    html += '</tbody></table>';
+    document.getElementById(containerId).innerHTML = html;
+}
+
+// ============================================================
+// INIT
+// ============================================================
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Timeline
+    renderTimeline('timeline-container');
+
+    // Table T
+    renderTableT('table-t-container');
+
+    // Strategy 1
+    renderStrategyOutput('strategy-1-output-container', s1Output);
+    renderAggregated('strategy-1-agg-container', s1CrossEdges);
+    renderGraph('strategy-1-graph', s1CrossEdges);
+
+    // Strategy 2
+    renderStrategyOutput('strategy-2-pc1-container', s2PerChild['P+C1']);
+    renderStrategyOutput('strategy-2-pc2-container', s2PerChild['P+C2']);
+    renderStrategyOutput('strategy-2-pc3-container', s2PerChild['P+C3']);
+    renderStrategyOutput('strategy-2-union-container', s2Union, { showPair:false, showCount:true, showContrib:true });
+    renderAggregated('strategy-2-agg-container', s2CrossEdges);
+    renderGraph('strategy-2-graph', s2CrossEdges);
+
+    // Strategy 3
+    renderStrategyOutput('strategy-3-intersect-container', s3Intersection, { showPair:false, showInAll:true });
+    renderAggregated('strategy-3-agg-container', s3CrossEdges);
+    renderGraph('strategy-3-graph', s3CrossEdges);
+
+    // Comparison
+    renderComparison('comparison-container');
+});
+</script>
+
+</body>
+</html>

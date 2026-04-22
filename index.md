@@ -11,6 +11,7 @@ This is the central hub for static UI prototypes to explore new design concepts 
 
 *   [Records Drill Down Prototype](drill-down.html) - A prototype demonstrating record filtering and drill-down functionality.
 *   [Multi-Pass Process Join Prototype](multi-pass-join.html) - A prototype demonstrating multi-process joins and process monitoring.
+*   [Cross-Lane Strategies Analysis](crossing-lane-strategies.html) - Analysis of three strategies for deriving cross-lane handoffs in 1:many process timelines (Deviation + CAPAs), with a timeline visualization and comparison tables and graphs.
 *   [Task Explorer Prototype](taskExplorer.html) - A prototype demonstrating task-level drill-downs within process states, featuring a frequency heatmap and variant side-panel.
 *   [Veeva Vault UI Styling & Layout Guidelines](Vault-Styling.md) - Documentation for Vault UI consistency.
 

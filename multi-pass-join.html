@@ -352,6 +352,7 @@
                 <div class="tab-btn h-full flex items-center" onclick="switchTab('monitor-tab')">Two-Process View</div>
                 <div class="tab-btn h-full flex items-center" onclick="switchTab('flat-tab')">Flattened View</div>
                 <div class="tab-btn h-full flex items-center" onclick="switchTab('swimlane-tab')">Swimlane View</div>
+                <div class="tab-btn h-full flex items-center" onclick="switchTab('ml-tab')">Full Graph View</div>
                 <div class="tab-btn h-full flex items-center" onclick="switchTab('drilldown-tab')">Drill-Down View</div>
             </div>
             <div class="mb-1">
@@ -929,6 +930,92 @@
             </div>
         </div>
 
+        <!-- Full Graph View Tab -->
+        <div id="ml-tab" class="flex-1 flex flex-col hidden w-full overflow-hidden">
+            <div class="bg-white border-b flex-shrink-0">
+                <div class="flex items-center justify-between px-4 py-2">
+                    <div class="flex flex-col">
+                        <div class="text-[11px] text-[var(--veeva-blue)] uppercase font-semibold">Full Graph View</div>
+                        <h2 class="text-[18px] font-normal text-[var(--text-main)]" id="ml-title">End-to-End Process</h2>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button class="border border-gray-300 bg-white text-[13px] px-3 py-1 rounded cursor-pointer">Save</button>
+                        <button class="btn-primary text-[13px] px-4 py-1">Run</button>
+                    </div>
+                </div>
+            </div>
+            <div class="flex-1 flex overflow-hidden">
+                <div class="w-[220px] bg-[#f8f8f8] border-r border-[#eee] flex flex-col overflow-y-auto flex-shrink-0 pt-4">
+                    <div class="px-4 flex flex-col gap-5">
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[11px] font-bold text-gray-700 uppercase">Process</label>
+                            <select id="ml-process-select" class="border border-gray-300 rounded px-2 py-1.5 text-[13px]" onchange="switchProcess(this.value)">
+                                <option value="inbox-case">Inbox Item → Case</option>
+                                <option value="dev-capa">Deviations with CAPA</option>
+                            </select>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[11px] font-bold text-gray-700 uppercase">Cycle Time Start</label>
+                            <select id="ml-ct-start" class="border border-gray-300 rounded px-2 py-1.5 text-[13px]" onchange="updateMLMetrics()"></select>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[11px] font-bold text-gray-700 uppercase">Cycle Time End</label>
+                            <select id="ml-ct-end" class="border border-gray-300 rounded px-2 py-1.5 text-[13px]" onchange="updateMLMetrics()"></select>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[11px] font-bold text-gray-700 uppercase">Timeframe</label>
+                            <select class="border border-gray-300 rounded px-2 py-1.5 text-[13px]"><option>Last 3 months</option></select>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex-1 flex flex-col bg-[#fafafa] overflow-hidden pt-4">
+                    <div class="px-6 flex-shrink-0">
+                        <div class="metrics-bar">
+                            <div class="metrics-group">
+                                <div class="metrics-group-header">Cycle Time (Days)</div>
+                                <div class="metrics-group-body">
+                                    <div class="metric-cell"><div class="metric-label">Avg</div><div class="metric-value" id="ml-avg-metric">—</div></div>
+                                    <div class="metric-cell"><div class="metric-label">Med</div><div class="metric-value" id="ml-med-metric">—</div></div>
+                                </div>
+                            </div>
+                            <div class="metrics-group">
+                                <div class="metrics-group-header">Volume</div>
+                                <div class="metrics-group-body">
+                                    <div class="metric-cell"><div class="metric-label">Parents</div><div class="metric-value" id="ml-vol-parents">—</div></div>
+                                    <div class="metric-cell"><div class="metric-label">Children</div><div class="metric-value" id="ml-vol-children">—</div></div>
+                                </div>
+                            </div>
+                            <div class="metrics-group">
+                                <div class="metrics-group-header">Child Fan-out</div>
+                                <div class="metrics-group-body">
+                                    <div class="metric-cell"><div class="metric-label">Avg</div><div class="metric-value" id="ml-fanout-avg">—</div></div>
+                                    <div class="metric-cell"><div class="metric-label">Range</div><div class="metric-value" id="ml-fanout-range">—</div></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="px-6 mt-4 border-b border-[var(--border-color)] bg-white flex-shrink-0">
+                        <div class="flex">
+                            <div class="section-tab">Overview</div>
+                            <div class="section-tab active">Process Graph</div>
+                            <div class="section-tab">Records</div>
+                        </div>
+                    </div>
+                    <div class="h-[36px] bg-[var(--tp-bar-bg)] border-b border-[var(--border-color)] flex items-center px-6 flex-shrink-0"></div>
+                    <div class="flex-1 p-6 overflow-auto" id="ml-graph-outer">
+                      <div class="flex items-start gap-4">
+                        <div class="variant-panel self-start">
+                            <div class="variant-panel-header px-4 pt-3 text-[13px]">Signature Variants</div>
+                            <div class="variant-panel-subtitle px-4 pb-2 text-[11px] text-gray-500">Parent + child transition patterns</div>
+                            <div class="pb-2 border-t mt-1" id="ml-variants"></div>
+                        </div>
+                        <div class="self-start flex-shrink-0 border border-[var(--border-color)] rounded bg-white" id="ml-graph-container"></div>
+                      </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div id="drilldown-tab" class="flex-1 flex flex-col hidden w-full overflow-hidden">
             <div class="bg-white border-b flex-shrink-0">
                 <div class="flex items-center justify-between px-4 py-2">
@@ -1356,7 +1443,154 @@
                             <div class="border border-[var(--border-color)] rounded p-3 bg-white"><div class="text-[10px] text-gray-500 uppercase">Variants</div><div class="text-[18px] font-bold mt-1">2</div><div class="text-[11px] text-gray-400">Main (88%) + Expedited (12%)</div></div>
                             <div class="border border-[var(--border-color)] rounded p-3 bg-white"><div class="text-[10px] text-gray-500 uppercase">On-Time Rate</div><div class="text-[18px] font-bold mt-1">91.2%</div><div class="text-[11px] text-gray-400">within SLA target</div></div>
                         </div></div>`
-                }
+                },
+                // Multi-Lifecycle signature variants
+                // Each variant's signature = (parent node/edge set, aggregate child node/edge set)
+                // Rare variants grouped as "Other"
+                mlVariants: [
+                    {
+                        label: 'V1', freq: '55%', width: '55%', days: '13.8d',
+                        parents: 48, children: 58, fanout: { avg: 1.2, min: 1, max: 2 },
+                        handoffs: [
+                            { fromSide:'parent', fromId:'P2', toSide:'child', toId:'C0', count:58 },
+                            { fromSide:'child', fromId:'C3', toSide:'parent', toId:'P3', count:58 }
+                        ],
+                        parent: {
+                            nodes: [
+                                { id:'P0', si:0, label:'Define Team', stats:'48 | 2.1d', w:160, h:44 },
+                                { id:'P1', si:1, label:'In Investigation', stats:'48 | 5.3d', w:170, h:44 },
+                                { id:'P2', si:2, label:'In CAPA Planning', stats:'48 | 3.8d', w:180, h:44 },
+                                { id:'P3', si:7, label:'Closed', stats:'48 | 1.4d', w:140, h:44 }
+                            ],
+                            edges: [
+                                { from:'P0', to:'P1', count:48 },
+                                { from:'P1', to:'P2', count:48 },
+                                { from:'P2', to:'P3', count:48 }
+                            ]
+                        },
+                        child: {
+                            nodes: [
+                                { id:'C0', si:3, label:'Define Team', stats:'58 | 1.9d', w:160, h:44 },
+                                { id:'C1', si:4, label:'Ready for Impl', stats:'58 | 4.2d', w:180, h:44 },
+                                { id:'C2', si:5, label:'In Implementation', stats:'58 | 6.1d', w:190, h:44 },
+                                { id:'C3', si:6, label:'Closed', stats:'58 | 2.0d', w:140, h:44 }
+                            ],
+                            edges: [
+                                { from:'C0', to:'C1', count:58 },
+                                { from:'C1', to:'C2', count:58 },
+                                { from:'C2', to:'C3', count:58 }
+                            ]
+                        }
+                    },
+                    {
+                        label: 'V2', freq: '25%', width: '25%', days: '18.4d',
+                        parents: 22, children: 33, fanout: { avg: 1.5, min: 1, max: 3 },
+                        handoffs: [
+                            { fromSide:'parent', fromId:'P2', toSide:'child', toId:'C0', count:33 },
+                            { fromSide:'child', fromId:'C3', toSide:'parent', toId:'P3', count:33 }
+                        ],
+                        parent: {
+                            nodes: [
+                                { id:'P0', si:0, label:'Define Team', stats:'22 | 2.3d', w:160, h:44 },
+                                { id:'P1', si:1, label:'In Investigation', stats:'22 | 6.1d', w:170, h:44 },
+                                { id:'P2', si:2, label:'In CAPA Planning', stats:'22 | 4.2d', w:180, h:44 },
+                                { id:'P3', si:7, label:'Closed', stats:'22 | 1.5d', w:140, h:44 }
+                            ],
+                            edges: [
+                                { from:'P0', to:'P1', count:22 },
+                                { from:'P1', to:'P2', count:22 },
+                                { from:'P2', to:'P3', count:22 }
+                            ]
+                        },
+                        child: {
+                            nodes: [
+                                { id:'C0', si:3, label:'Define Team', stats:'33 | 2.0d', w:160, h:44 },
+                                { id:'C1', si:4, label:'Ready for Impl', stats:'33 | 4.8d', w:180, h:44 },
+                                { id:'C2', si:5, label:'In Implementation', stats:'38 | 7.4d', w:190, h:44 },
+                                { id:'C3', si:6, label:'Closed', stats:'33 | 2.1d', w:140, h:44 }
+                            ],
+                            edges: [
+                                { from:'C0', to:'C1', count:33 },
+                                { from:'C1', to:'C2', count:38 },
+                                { from:'C2', to:'C1', count:5 },
+                                { from:'C2', to:'C3', count:33 }
+                            ]
+                        }
+                    },
+                    {
+                        label: 'V3', freq: '12%', width: '12%', days: '16.2d',
+                        parents: 10, children: 24, fanout: { avg: 2.4, min: 1, max: 4 },
+                        handoffs: [
+                            { fromSide:'parent', fromId:'P2', toSide:'child', toId:'C0', count:24 },
+                            { fromSide:'child', fromId:'C3', toSide:'parent', toId:'P3', count:24 }
+                        ],
+                        parent: {
+                            nodes: [
+                                { id:'P0', si:0, label:'Define Team', stats:'10 | 2.0d', w:160, h:44 },
+                                { id:'P1', si:1, label:'In Investigation', stats:'10 | 5.1d', w:170, h:44 },
+                                { id:'P2', si:2, label:'In CAPA Planning', stats:'10 | 3.5d', w:180, h:44 },
+                                { id:'P3', si:7, label:'Closed', stats:'10 | 1.3d', w:140, h:44 }
+                            ],
+                            edges: [
+                                { from:'P0', to:'P1', count:10 },
+                                { from:'P1', to:'P2', count:10 },
+                                { from:'P2', to:'P3', count:10 }
+                            ]
+                        },
+                        child: {
+                            nodes: [
+                                { id:'C0', si:3, label:'Define Team', stats:'24 | 1.8d', w:160, h:44 },
+                                { id:'C1', si:4, label:'Ready for Impl', stats:'22 | 3.9d', w:180, h:44 },
+                                { id:'C2', si:5, label:'In Implementation', stats:'20 | 5.8d', w:190, h:44 },
+                                { id:'C3', si:6, label:'Closed', stats:'24 | 2.0d', w:140, h:44 }
+                            ],
+                            edges: [
+                                { from:'C0', to:'C1', count:22 },
+                                { from:'C0', to:'C3', count:2 },
+                                { from:'C1', to:'C2', count:20 },
+                                { from:'C1', to:'C3', count:2 },
+                                { from:'C2', to:'C3', count:20 }
+                            ]
+                        }
+                    },
+                    {
+                        label: 'Other', freq: '8%', width: '8%', days: '24.7d',
+                        parents: 7, children: 27, fanout: { avg: 3.8, min: 2, max: 7 },
+                        handoffs: [
+                            { fromSide:'parent', fromId:'P2', toSide:'child', toId:'C0', count:27 },
+                            { fromSide:'child', fromId:'C3', toSide:'parent', toId:'P3', count:27 }
+                        ],
+                        parent: {
+                            nodes: [
+                                { id:'P0', si:0, label:'Define Team', stats:'7 | 2.4d', w:160, h:44 },
+                                { id:'P1', si:1, label:'In Investigation', stats:'10 | 7.2d', w:170, h:44 },
+                                { id:'P2', si:2, label:'In CAPA Planning', stats:'7 | 5.9d', w:180, h:44 },
+                                { id:'P3', si:7, label:'Closed', stats:'7 | 1.8d', w:140, h:44 }
+                            ],
+                            edges: [
+                                { from:'P0', to:'P1', count:7 },
+                                { from:'P1', to:'P0', count:3 },
+                                { from:'P1', to:'P2', count:7 },
+                                { from:'P2', to:'P3', count:7 }
+                            ]
+                        },
+                        child: {
+                            nodes: [
+                                { id:'C0', si:3, label:'Define Team', stats:'27 | 2.5d', w:160, h:44 },
+                                { id:'C1', si:4, label:'Ready for Impl', stats:'30 | 5.2d', w:180, h:44 },
+                                { id:'C2', si:5, label:'In Implementation', stats:'28 | 8.1d', w:190, h:44 },
+                                { id:'C3', si:6, label:'Closed', stats:'27 | 2.4d', w:140, h:44 }
+                            ],
+                            edges: [
+                                { from:'C0', to:'C1', count:27 },
+                                { from:'C1', to:'C0', count:3 },
+                                { from:'C1', to:'C2', count:28 },
+                                { from:'C2', to:'C1', count:6 },
+                                { from:'C2', to:'C3', count:27 }
+                            ]
+                        }
+                    }
+                ]
             }
         };
 
@@ -1617,7 +1851,7 @@
         function switchTab(tabId) {
             document.querySelectorAll('#main-tabs .tab-btn').forEach(btn => btn.classList.remove('active'));
             event.currentTarget.classList.add('active');
-            ['admin-tab', 'monitor-tab', 'flat-tab', 'swimlane-tab', 'drilldown-tab'].forEach(id => {
+            ['admin-tab', 'monitor-tab', 'flat-tab', 'swimlane-tab', 'ml-tab', 'drilldown-tab'].forEach(id => {
                 document.getElementById(id).classList.add('hidden');
             });
             document.getElementById(tabId).classList.remove('hidden');
@@ -1631,7 +1865,7 @@
             const proc = getProc();
 
             // Sync all dropdowns
-            ['process-select', 'flat-process-select', 'swim-process-select', 'dd-process-select'].forEach(id => {
+            ['process-select', 'flat-process-select', 'swim-process-select', 'ml-process-select', 'dd-process-select'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.value = processId;
             });
@@ -1670,6 +1904,29 @@
             buildVariantPanel('swim-variants', proc.flatVariants, "toggleSwimVariantRow(");
             document.querySelector('#swimlane-tab .variant-panel-header').textContent = proc.flatVariantTitle;
             initSwimCycleTime();
+
+            // --- Multi-Lifecycle View ---
+            document.getElementById('ml-title').textContent = proc.flatTitle;
+            mlSelectedVariant = 0;
+            if (proc.mlVariants) {
+                // Build variant panel rows from mlVariants
+                const mlVariantEntries = proc.mlVariants.map(v => ({ w: v.width, d: v.days }));
+                buildVariantPanel('ml-variants', mlVariantEntries, "toggleMLVariantRow(");
+                // Replace label text with variant labels (V1/V2/V3/Other) and widen column
+                const rows = document.querySelectorAll('#ml-variants .variant-row');
+                rows.forEach((row, i) => {
+                    const numSpan = row.querySelector('.variant-num');
+                    if (numSpan && proc.mlVariants[i]) {
+                        numSpan.textContent = proc.mlVariants[i].label;
+                        numSpan.classList.remove('w-4', 'text-right');
+                        numSpan.classList.add('w-10', 'text-left');
+                    }
+                });
+            } else {
+                document.getElementById('ml-variants').innerHTML = '<div class="px-4 py-3 text-[11px] text-gray-500">No multi-lifecycle variants for this process.</div>';
+            }
+            renderMultiLifecycleSvg();
+            initMLCycleTime();
 
             // --- Drill-Down View ---
             document.querySelector('#drilldown-tab h2').textContent = proc.ddTitle;
@@ -1994,6 +2251,258 @@
 
             svg += '</svg>';
             document.getElementById('swim-graph-container').innerHTML = svg;
+        }
+
+        // =============================================
+        // MULTI-LIFECYCLE VIEW
+        // =============================================
+        let mlSelectedVariant = 0;
+
+        function toggleMLVariantRow(index) {
+            mlSelectedVariant = index;
+            const container = document.getElementById('ml-variants');
+            if (container) container.querySelectorAll('.variant-row').forEach((r, i) => {
+                i === index ? r.classList.add('selected') : r.classList.remove('selected');
+            });
+            renderMultiLifecycleSvg();
+            updateMLMetrics();
+        }
+
+        function initMLCycleTime() {
+            const startSel = document.getElementById('ml-ct-start');
+            const endSel = document.getElementById('ml-ct-end');
+            const st = getStates();
+            startSel.innerHTML = '';
+            endSel.innerHTML = '';
+            st.forEach((s, i) => {
+                startSel.add(new Option(s.label, i));
+                endSel.add(new Option(s.label, i));
+            });
+            startSel.selectedIndex = 0;
+            endSel.selectedIndex = st.length - 1;
+            updateMLMetrics();
+        }
+
+        function updateMLMetrics() {
+            const proc = getProc();
+            if (!proc.mlVariants) {
+                ['ml-avg-metric','ml-med-metric','ml-vol-parents','ml-vol-children','ml-fanout-avg','ml-fanout-range'].forEach(id => {
+                    const el = document.getElementById(id); if (el) el.textContent = '—';
+                });
+                highlightMLGraph(-1, -1);
+                return;
+            }
+            const variant = proc.mlVariants[mlSelectedVariant];
+            if (!variant) return;
+
+            // Volume & fan-out metrics reflect the selected variant
+            document.getElementById('ml-vol-parents').textContent = variant.parents;
+            document.getElementById('ml-vol-children').textContent = variant.children;
+            document.getElementById('ml-fanout-avg').textContent = variant.fanout.avg.toFixed(1);
+            document.getElementById('ml-fanout-range').textContent = `${variant.fanout.min}–${variant.fanout.max}`;
+
+            // Cycle time metrics based on start/end state selectors
+            const startIdx = parseInt(document.getElementById('ml-ct-start').value);
+            const endIdx = parseInt(document.getElementById('ml-ct-end').value);
+            const st = getStates();
+            if (isNaN(startIdx) || isNaN(endIdx) || startIdx > endIdx) {
+                document.getElementById('ml-avg-metric').textContent = '—';
+                document.getElementById('ml-med-metric').textContent = '—';
+                highlightMLGraph(-1, -1);
+                return;
+            }
+            let totalDays = 0;
+            for (let i = startIdx; i <= endIdx; i++) totalDays += st[i].days;
+            document.getElementById('ml-avg-metric').textContent = totalDays.toFixed(1);
+            document.getElementById('ml-med-metric').textContent = (totalDays * 0.85).toFixed(1);
+            highlightMLGraph(startIdx, endIdx);
+        }
+
+        function highlightMLGraph(start, end) {
+            const svg = document.getElementById('ml-svg');
+            if (!svg) return;
+            svg.querySelectorAll('.graph-node').forEach(node => {
+                const idx = parseInt(node.getAttribute('data-state'));
+                node.classList.remove('ct-start-active', 'ct-end-active');
+                if (idx === start) node.classList.add('ct-start-active');
+                else if (idx === end) node.classList.add('ct-end-active');
+            });
+        }
+
+        // Given a DFG definition { nodes:[...], edges:[{from,to,count}] }, produce SVG
+        // Returns { svg, bbox, nodePositions } for composition.
+        // Collapses bidirectional edges into a single visual with bi-directional arrowheads.
+        function renderMLDfg(dfg, offsetX, offsetY) {
+            // Group edges by unordered pair to detect bidirectional
+            const groups = new Map();
+            dfg.edges.forEach(e => {
+                const key = [e.from, e.to].sort().join('|');
+                if (!groups.has(key)) groups.set(key, []);
+                groups.get(key).push(e);
+            });
+
+            // For layout, pick primary direction (higher count) for each group
+            const layoutEdges = [];
+            const groupByKey = new Map();
+            groups.forEach((edges, key) => {
+                const primary = edges.length === 1 ? edges[0] : edges.reduce((a,b) => a.count >= b.count ? a : b);
+                const reverse = edges.length > 1 ? edges.find(e => e !== primary) : null;
+                layoutEdges.push([primary.from, primary.to]);
+                groupByKey.set(key, { primary, reverse });
+            });
+
+            const g = DG.layout(dfg.nodes, layoutEdges, { rankdir: 'TB', nodesep: 30, ranksep: 60 });
+            const bbox = g.graph();
+
+            // Compute min/max counts for edge thickness (use primary count for scaling)
+            const primaryCounts = Array.from(groupByKey.values()).map(v => v.primary.count);
+            const maxC = Math.max(...primaryCounts);
+            const minC = Math.min(...primaryCounts);
+            const widthFor = c => {
+                if (maxC === minC) return 2.5;
+                return 1.5 + ((c - minC) / (maxC - minC)) * 5; // 1.5 to 6.5 px
+            };
+
+            let svg = '';
+
+            // Render edges
+            groupByKey.forEach((grp, key) => {
+                const { primary, reverse } = grp;
+                const edgeObj = g.edge(primary.from, primary.to);
+                if (!edgeObj || !edgeObj.points) return;
+                const pts = edgeObj.points.map(p => ({ x: p.x + offsetX, y: p.y + offsetY }));
+                let d = `M${pts[0].x} ${pts[0].y}`;
+                for (let i = 1; i < pts.length; i++) d += ` L${pts[i].x} ${pts[i].y}`;
+                const sw = widthFor(primary.count);
+                svg += `<path class="graph-edge" d="${d}" stroke="#7a8796" stroke-width="${sw}" fill="none" marker-end="url(#ah-gray)"/>`;
+
+                // Label with count(s) on the midpoint
+                const midIdx = Math.floor(pts.length / 2);
+                const mid = pts.length % 2 === 0
+                    ? { x: (pts[midIdx-1].x + pts[midIdx].x)/2, y: (pts[midIdx-1].y + pts[midIdx].y)/2 }
+                    : pts[midIdx];
+                const labelText = reverse ? `${primary.count} / ${reverse.count}` : `${primary.count}`;
+                const labelW = reverse ? 36 : 24;
+                svg += `<rect x="${mid.x - labelW/2}" y="${mid.y - 7}" width="${labelW}" height="14" rx="7" fill="white" stroke="#d0d4db" stroke-width="0.5"/>`;
+                svg += `<text x="${mid.x}" y="${mid.y + 3}" text-anchor="middle" font-size="9" font-weight="600" fill="#555">${labelText}</text>`;
+            });
+
+            // Render nodes
+            dfg.nodes.forEach(n => {
+                svg += DG.node(g, n, { offsetX, offsetY });
+            });
+
+            // Capture node positions for cross-lane arrow routing
+            const nodePositions = {};
+            dfg.nodes.forEach(n => {
+                const pos = g.node(n.id);
+                if (pos) nodePositions[n.id] = {
+                    x: pos.x + offsetX, y: pos.y + offsetY,
+                    width: pos.width, height: pos.height
+                };
+            });
+
+            return { svg, bbox, nodePositions };
+        }
+
+        function renderMultiLifecycleSvg() {
+            const proc = getProc();
+            const container = document.getElementById('ml-graph-container');
+            if (!container) return;
+
+            if (!proc.mlVariants) {
+                container.innerHTML = `<div class="p-10 text-center text-gray-500 text-[13px]">Full Graph view is designed for 1:many processes.<br/>Switch to <strong>Deviations with CAPA</strong> to see it in action.</div>`;
+                return;
+            }
+
+            const variant = proc.mlVariants[mlSelectedVariant];
+            if (!variant) { container.innerHTML = ''; return; }
+
+            // Layout constants
+            const laneW_min = 420;
+            const laneGap = 20;
+            const headerH = 36;
+            const paddingX = 16;
+            const paddingY = 16;
+            const laneTitles = [
+                (proc.leftVariantTitle || 'Parent').replace(' Variants', ' Process'),
+                (proc.rightVariantTitle || 'Child').replace(' Variants', ' Process')
+            ];
+
+            // Pre-compute layouts to know lane widths
+            const parentEdgePairs = variant.parent.edges.map(e => [e.from, e.to]);
+            const childEdgePairs = variant.child.edges.map(e => [e.from, e.to]);
+            const gP = DG.layout(variant.parent.nodes, parentEdgePairs, { rankdir: 'TB', nodesep: 30, ranksep: 50 });
+            const gC = DG.layout(variant.child.nodes, childEdgePairs, { rankdir: 'TB', nodesep: 30, ranksep: 50 });
+            const pBbox = gP.graph();
+            const cBbox = gC.graph();
+
+            const parentLaneW = Math.max(laneW_min, pBbox.width + 32);
+            const childLaneW = Math.max(laneW_min, cBbox.width + 32);
+            const laneH = Math.max(pBbox.height, cBbox.height) + 32;
+
+            const totalW = paddingX * 2 + parentLaneW + laneGap + childLaneW;
+            const totalH = paddingY * 2 + headerH + laneH;
+
+            // Per-lane content offsets (for centering DFG within lane)
+            const parentLaneX = paddingX;
+            const childLaneX = paddingX + parentLaneW + laneGap;
+            const contentY = paddingY + headerH + 16;
+            const parentContentX = parentLaneX + (parentLaneW - pBbox.width) / 2;
+            const childContentX = childLaneX + (childLaneW - cBbox.width) / 2;
+
+            let svg = `<svg width="${totalW}" height="${totalH}" viewBox="0 0 ${totalW} ${totalH}" id="ml-svg">
+                <defs>
+                    <marker id="ah-gray" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto" markerUnits="userSpaceOnUse"><polygon points="0 0, 10 4, 0 8" fill="#7a8796"/></marker>
+                    <marker id="ah-ml-orange" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto" markerUnits="userSpaceOnUse"><polygon points="0 0, 10 4, 0 8" fill="var(--veeva-orange)"/></marker>
+                </defs>`;
+
+            // Lane backgrounds + headers
+            [{ x: parentLaneX, w: parentLaneW, title: laneTitles[0] },
+             { x: childLaneX, w: childLaneW, title: laneTitles[1] }].forEach(lane => {
+                svg += `<rect x="${lane.x}" y="${paddingY}" width="${lane.w}" height="${laneH + headerH}" fill="#fafbfc" stroke="#e5e7eb" stroke-width="1" rx="4"/>`;
+                svg += `<rect x="${lane.x}" y="${paddingY}" width="${lane.w}" height="${headerH}" fill="#f0f4fa" stroke="#e5e7eb" stroke-width="1" rx="4"/>`;
+                svg += `<rect x="${lane.x}" y="${paddingY + headerH - 1}" width="${lane.w}" height="2" fill="#e5e7eb"/>`;
+                svg += `<text x="${lane.x + lane.w/2}" y="${paddingY + headerH/2 + 4}" text-anchor="middle" font-size="11" font-weight="700" fill="#1d1d1d" letter-spacing="0.5">${lane.title.toUpperCase()}</text>`;
+            });
+
+            // Render DFGs
+            const pRender = renderMLDfg(variant.parent, parentContentX, contentY);
+            const cRender = renderMLDfg(variant.child, childContentX, contentY);
+            svg += pRender.svg;
+            svg += cRender.svg;
+
+            // Cross-lane handoff arrows
+            if (variant.handoffs) {
+                variant.handoffs.forEach(h => {
+                    const fromPositions = h.fromSide === 'parent' ? pRender.nodePositions : cRender.nodePositions;
+                    const toPositions = h.toSide === 'parent' ? pRender.nodePositions : cRender.nodePositions;
+                    const fromPos = fromPositions[h.fromId];
+                    const toPos = toPositions[h.toId];
+                    if (!fromPos || !toPos) return;
+
+                    // Start at the right edge of the source node, end at the left edge of target
+                    // (or reverse if target is left of source)
+                    const srcRight = fromPos.x + fromPos.width / 2;
+                    const srcLeft = fromPos.x - fromPos.width / 2;
+                    const dstRight = toPos.x + toPos.width / 2;
+                    const dstLeft = toPos.x - toPos.width / 2;
+
+                    let fx, tx;
+                    if (fromPos.x < toPos.x) { fx = srcRight; tx = dstLeft; }
+                    else { fx = srcLeft; tx = dstRight; }
+                    const fy = fromPos.y;
+                    const ty = toPos.y;
+
+                    // Smooth curved arrow between lanes — same styling as in-lane edges
+                    const midX = (fx + tx) / 2;
+                    const d = `M${fx} ${fy} C${midX} ${fy}, ${midX} ${ty}, ${tx} ${ty}`;
+                    svg += `<path class="graph-edge" d="${d}" stroke="#7a8796" stroke-width="2" fill="none" marker-end="url(#ah-gray)"/>`;
+                });
+            }
+
+            svg += '</svg>';
+            container.innerHTML = svg;
         }
 
         // =============================================
