@@ -1,0 +1,1646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Process Monitor — Metric & Chart Drill-Down Prototype</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --veeva-blue: #1453b8;
+            --veeva-blue-hover: #0f4092;
+            --veeva-orange: #f8972b;
+            --vault-header-bg: #061937;
+            --text-main: #1d1d1d;
+            --text-muted: #808080;
+            --border-color: #e5e7eb;
+            --sidebar-bg: #f8f8f8;
+            --grid-header-bg: #c0c0c0;
+            --page-bg: #ffffff;
+            --tp-bar-bg: #f0f6ff;
+            --info-banner-bg: #fffbe6;
+            --info-banner-border: #f0e68c;
+            --graph-step-stroke: #b0b0b0;
+            --graph-hover-bg: #f0f6ff;
+        }
+        body {
+            font-family: 'Roboto', sans-serif;
+            color: var(--text-main);
+            background-color: var(--page-bg);
+            margin: 0; padding: 0;
+            display: flex; flex-direction: column; height: 100vh;
+        }
+        .btn-primary {
+            background-color: var(--veeva-blue); color: white; border-radius: 4px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1); font-size: 14px; font-weight: 500;
+            padding: 6px 16px; cursor: pointer; border: none;
+        }
+        .btn-primary:hover { background-color: var(--veeva-blue-hover); }
+        .btn-secondary {
+            background-color: white; border: 1px solid #dadada; color: var(--text-main);
+            border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); font-size: 14px;
+            font-weight: 500; padding: 6px 16px; cursor: pointer;
+        }
+        .btn-secondary:hover { background-color: #f9fafb; }
+
+        /* Grid Styles */
+        .grid-header {
+            background-color: var(--grid-header-bg); color: var(--text-main); font-weight: bold;
+            font-size: 12px; border-bottom: 1px solid #a0a0a0; border-right: 1px solid #a0a0a0;
+            padding: 8px; position: relative; cursor: pointer; user-select: none; vertical-align: top;
+        }
+        .grid-cell {
+            border-bottom: 1px solid var(--border-color); border-right: 1px solid var(--border-color);
+            background-color: white; padding: 8px; font-size: 13px;
+        }
+        .grid-row:hover .grid-cell { background-color: #f9fafb; }
+
+        /* Filter Dropdown */
+        .filter-dropdown {
+            position: absolute; top: 100%; left: 0; background: white;
+            border: 1px solid var(--border-color); box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            border-radius: 4px; z-index: 20; width: 220px;
+            display: flex; flex-direction: column; padding: 10px; gap: 8px;
+        }
+        .filter-dropdown select {
+            width: 100%; border: 1px solid #ccc; border-radius: 3px;
+            padding: 5px 8px; font-size: 12px; outline: none; background: white;
+        }
+        .filter-dropdown select:focus { border-color: var(--veeva-blue); }
+        .filter-dropdown input[type="text"] {
+            width: 100%; border: 1px solid #ccc; border-radius: 3px;
+            padding: 5px 8px; font-size: 12px; outline: none; box-sizing: border-box;
+        }
+        .filter-dropdown input[type="text"]:focus { border-color: var(--veeva-blue); }
+        .filter-dropdown .filter-actions {
+            display: flex; justify-content: flex-end; gap: 8px; margin-top: 2px;
+        }
+
+        /* Collapsible filter summary */
+        .filter-summary-toggle {
+            display: flex; align-items: center; gap: 4px; cursor: pointer;
+            user-select: none; font-size: 13px; color: var(--text-main);
+        }
+        .filter-summary-toggle .caret {
+            font-size: 10px; transition: transform 0.15s; color: #666;
+        }
+        .filter-summary-toggle .caret.expanded { transform: rotate(90deg); }
+        .filter-summary-rows {
+            display: flex; flex-direction: column; gap: 2px; padding: 4px 0 4px 16px;
+        }
+        .filter-summary-row { display: flex; align-items: center; gap: 4px; font-size: 13px; }
+        .filter-summary-row .filter-remove {
+            cursor: pointer; color: #999; font-size: 14px; line-height: 1;
+            display: flex; align-items: center;
+        }
+        .filter-summary-row .filter-remove:hover { color: #c00; }
+        .icon { width: 14px; height: 14px; fill: currentColor; }
+
+        /* Time Period Selector */
+        .time-period-bar {
+            display: flex; align-items: center; gap: 12px; padding: 8px 16px;
+            background: #f0f6ff; border-bottom: 1px solid var(--border-color); font-size: 13px;
+        }
+        .time-period-selector {
+            position: relative; display: inline-flex; align-items: center;
+        }
+        .time-period-btn {
+            display: flex; align-items: center; gap: 4px; padding: 4px 10px;
+            border: 1px solid #b0c4de; border-radius: 4px; background: white;
+            font-size: 13px; font-weight: 600; cursor: pointer; color: var(--text-main);
+        }
+        .time-period-btn:hover { border-color: var(--veeva-blue); }
+        .time-period-dropdown {
+            position: absolute; top: 100%; left: 0; margin-top: 4px;
+            background: white; border: 1px solid var(--border-color);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-radius: 4px;
+            z-index: 30; min-width: 280px; overflow: hidden;
+        }
+        .time-period-option {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 8px 12px; cursor: pointer; font-size: 13px;
+        }
+        .time-period-option:hover { background: #f0f6ff; }
+        .time-period-option.active { background: #e3edfc; font-weight: 600; }
+        .time-period-option .period-count { color: var(--text-muted); font-size: 12px; }
+        .time-period-nav {
+            display: flex; align-items: center; gap: 2px;
+        }
+        .time-period-nav button {
+            background: none; border: 1px solid #ccc; border-radius: 3px;
+            padding: 2px 8px; cursor: pointer; font-size: 13px; color: var(--text-main);
+        }
+        .time-period-nav button:hover:not(:disabled) { background: #eee; border-color: #999; }
+        .time-period-nav button:disabled { opacity: 0.35; cursor: default; }
+
+        /* Smart drill-down info banner */
+        .info-banner {
+            display: flex; align-items: center; gap: 8px; padding: 8px 16px;
+            background: #fffbe6; border-bottom: 1px solid #f0e68c; font-size: 13px;
+        }
+        .info-banner .info-icon { color: #b8860b; font-size: 16px; }
+        .info-banner a { color: var(--veeva-blue); cursor: pointer; text-decoration: underline; }
+
+        /* Process Graph */
+        .graph-step {
+            fill: white; stroke: #b0b0b0; stroke-width: 1.5; cursor: pointer;
+            transition: stroke 0.15s, fill 0.15s;
+        }
+        .graph-step:hover { stroke: var(--veeva-blue); fill: #f0f6ff; }
+        .graph-step-label { font-size: 12px; font-weight: 600; pointer-events: none; fill: var(--text-main); }
+        .graph-arrow { stroke: #999; stroke-width: 1.5; fill: none; marker-end: url(#arrowhead); }
+
+        /* Hovercards */
+        .hovercard {
+            position: absolute; background: white; border: 1px solid var(--border-color);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.18); border-radius: 6px;
+            padding: 12px 16px; z-index: 40; min-width: 220px; font-size: 13px;
+        }
+        .hovercard h4 { margin: 0 0 8px; font-size: 14px; font-weight: bold; color: var(--text-main); }
+        .hovercard .hc-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+        .hovercard .hc-label { color: var(--text-muted); }
+        .hovercard .hc-link {
+            display: inline-block; margin-top: 8px; color: var(--veeva-blue);
+            text-decoration: underline; cursor: pointer; font-weight: 600;
+        }
+
+        /* Section tab styling */
+        .section-tab {
+            padding: 10px 16px; font-size: 14px; cursor: pointer;
+            color: #666; border-bottom: 2px solid transparent;
+        }
+        .section-tab:hover { color: var(--text-main); }
+        .section-tab.active {
+            color: var(--veeva-blue); font-weight: 600;
+            border-bottom-color: var(--veeva-blue);
+        }
+
+        /* Interactive Metric Cells across top bar */
+        .metric-drillcell {
+            transition: all 0.2s ease-in-out;
+            user-select: none;
+            border-bottom: 3px solid transparent;
+        }
+        
+        /* Cursor and hover behaviors by active UX Mode */
+        body[data-ux-mode="single-click"] .chart-point-target {
+            cursor: pointer !important;
+        }
+        body[data-ux-mode="double-click"] .chart-point-target {
+            cursor: default !important;
+        }
+        body[data-ux-mode="hovercard"] .chart-point-target {
+            cursor: help !important;
+        }
+
+        body[data-ux-mode="single-click"] .metric-drillcell {
+            cursor: pointer !important;
+        }
+        body[data-ux-mode="single-click"] .metric-drillcell:hover {
+            background-color: #f0f6ff;
+            border-bottom-color: var(--veeva-blue);
+        }
+
+        body[data-ux-mode="double-click"] .metric-drillcell {
+            cursor: default !important;
+        }
+        body[data-ux-mode="double-click"] .metric-drillcell:hover {
+            background-color: #f5f3ff;
+            border-bottom-color: #9333ea;
+        }
+
+        body[data-ux-mode="hovercard"] .metric-drillcell {
+            cursor: help !important;
+        }
+        body[data-ux-mode="hovercard"] .metric-drillcell:hover {
+            background-color: #fffbeb;
+            border-bottom-color: var(--veeva-orange);
+        }
+        
+        /* Interactive Chart Classes */
+        .chart-point-target {
+            /* managed dynamically based on data-ux-mode */
+        }
+        .chart-point-node {
+            pointer-events: none; /* Crucial to prevent flashing / event blocking when over node */
+            transition: r 0.15s ease-in-out, stroke-width 0.15s;
+        }
+        .chart-point-target:hover + .chart-point-node {
+            r: 7.5px;
+            stroke-width: 3.5px;
+        }
+
+        /* Custom highlight for active interaction context */
+        .interactive-pulse {
+            animation: pulse-border 1.5s infinite;
+        }
+        @keyframes pulse-border {
+            0% { border-color: #dadada; }
+            50% { border-color: var(--veeva-blue); box-shadow: 0 0 8px rgba(20, 83, 184, 0.2); }
+            100% { border-color: #dadada; }
+        }
+
+        /* Feedback Logger Styling */
+        #feedback-log-container {
+            max-height: 120px;
+            font-family: monospace;
+            font-size: 11px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+        }
+    </style>
+</head>
+<body data-ux-mode="single-click">
+    <!-- Global Header -->
+    <header class="h-[88px] flex flex-col shrink-0 z-10 shadow-sm">
+        <div class="h-[48px] bg-[var(--vault-header-bg)] flex items-center justify-between px-4">
+            <div class="text-white font-bold text-lg flex items-center gap-2">
+                <span class="text-[var(--veeva-orange)]">Veeva</span> Vault
+            </div>
+            <div class="flex-1 max-w-md mx-4">
+                <div class="bg-white rounded flex items-center h-8 px-2">
+                    <span class="text-gray-500 text-sm mr-2 border-r pr-2 border-gray-300">All &#9660;</span>
+                    <input type="text" placeholder="Search" class="flex-1 outline-none text-sm px-2" />
+                </div>
+            </div>
+            <div class="flex items-center gap-4 text-white">
+                <div class="w-8 h-8 rounded-full bg-gray-400 flex items-center justify-center text-xs text-white">AK</div>
+            </div>
+        </div>
+        <div class="h-[40px] bg-[var(--sidebar-bg)] flex items-end px-4 border-b border-[var(--border-color)]">
+            <div class="flex gap-1 h-full">
+                <div class="px-4 py-2 text-[14px] text-[#1d1d1d] hover:bg-[#eee] cursor-pointer">Home</div>
+                <div class="px-4 py-2 text-[14px] text-[#1d1d1d] hover:bg-[#eee] cursor-pointer">Library</div>
+                <div class="px-4 py-2 text-[14px] bg-white border-b-4 border-[var(--veeva-orange)] font-bold cursor-pointer">Records</div>
+                <div class="px-4 py-2 text-[14px] text-[#1d1d1d] hover:bg-[#eee] cursor-pointer">Reports</div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <div class="flex flex-1 overflow-hidden">
+        <!-- Sidebar -->
+        <aside class="w-[280px] bg-[var(--sidebar-bg)] border-r border-[#eee] flex flex-col shrink-0">
+            <!-- EXPERIMENT CONTROL BOX (Sticky Top of Sidebar) -->
+            <div class="p-4 border-b bg-gradient-to-br from-[#ebf3ff] to-[#f4f8ff]">
+                <div class="text-[12px] font-bold text-blue-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5 fill-current text-blue-600" viewBox="0 0 24 24"><path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,6A1.5,1.5 0 0,0 10.5,7.5A1.5,1.5 0 0,0 12,9A1.5,1.5 0 0,0 13.5,7.5A1.5,1.5 0 0,0 12,6M12,11A1,1 0 0,0 11,12V17A1,1 0 0,0 12,18A1,1 0 0,0 13,17V12A1,1 0 0,0 12,11Z"/></svg>
+                    UX Experiment Panel
+                </div>
+                <div class="text-[11px] text-gray-500 mb-3">Choose which drill-down interaction paradigm you want to evaluate:</div>
+                <div class="flex flex-col gap-2">
+                    <label class="flex items-start gap-2 p-1.5 bg-white border rounded cursor-pointer hover:border-blue-300 transition-colors">
+                        <input type="radio" name="ux-mode" value="single-click" checked class="mt-1" onchange="setUXMode('single-click')" />
+                        <div>
+                            <div class="text-[12px] font-bold text-gray-800">1. Single Click</div>
+                            <div class="text-[10px] text-gray-500">Instant jump on 1-click</div>
+                        </div>
+                    </label>
+                    <label class="flex items-start gap-2 p-1.5 bg-white border rounded cursor-pointer hover:border-blue-300 transition-colors">
+                        <input type="radio" name="ux-mode" value="double-click" class="mt-1" onchange="setUXMode('double-click')" />
+                        <div>
+                            <div class="text-[12px] font-bold text-gray-800">2. Double Click</div>
+                            <div class="text-[10px] text-gray-500">Requires double-click to jump</div>
+                        </div>
+                    </label>
+                    <label class="flex items-start gap-2 p-1.5 bg-white border rounded cursor-pointer hover:border-blue-300 transition-colors">
+                        <input type="radio" name="ux-mode" value="hovercard" class="mt-1" onchange="setUXMode('hovercard')" />
+                        <div>
+                            <div class="text-[12px] font-bold text-gray-800">3. Hovercard &amp; Link</div>
+                            <div class="text-[10px] text-gray-500">Displays link inside hover popover</div>
+                        </div>
+                    </label>
+                </div>
+
+                <!-- Live Guidance Widget -->
+                <div class="mt-3 bg-white p-2 rounded border border-blue-200">
+                    <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Dynamic Tip</div>
+                    <div id="ux-guidance-tip" class="text-[11px] text-gray-700 leading-tight">
+                        Loading guidance...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Standard Config Sidebar Elements -->
+            <div class="p-4 text-[14px] uppercase font-bold text-gray-600 flex items-center gap-2 border-b">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M7,10L12,15L17,10H7Z" /></svg> CONFIGURATION
+            </div>
+            <div class="p-4 flex flex-col gap-5 overflow-y-auto flex-1">
+                <div>
+                    <div class="text-[12px] font-bold mb-2.5 uppercase text-gray-500">Date Range</div>
+                    <select class="w-full border rounded p-1.5 text-[13px] outline-none focus:border-[var(--veeva-blue)] bg-white">
+                        <option>Last 6 Months</option>
+                        <option>Last 30 Days</option>
+                        <option>Last 90 Days</option>
+                        <option>Current Year</option>
+                    </select>
+                </div>
+                <div>
+                    <div class="text-[12px] font-bold mb-2.5 uppercase text-gray-500">Lifecycle State</div>
+                    <div class="flex flex-col gap-2">
+                        <label class="flex items-center gap-2 text-[13px]"><input type="checkbox" checked /> <span>Completed</span></label>
+                        <label class="flex items-center gap-2 text-[13px]"><input type="checkbox" checked /> <span>Active</span></label>
+                        <label class="flex items-center gap-2 text-[13px]"><input type="checkbox" checked /> <span>In Review</span></label>
+                        <label class="flex items-center gap-2 text-[13px]"><input type="checkbox" /> <span>Draft</span></label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Event logger for proof of concept feedback -->
+            <div class="border-t shrink-0 flex flex-col p-3 bg-gray-50">
+                <div class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1 flex justify-between">
+                    <span>Interaction Logger</span>
+                    <span class="text-blue-600 cursor-pointer hover:underline" onclick="clearInteractionLog()">Clear</span>
+                </div>
+                <div id="feedback-log-container" class="rounded p-2 overflow-y-auto h-[90px] border border-gray-300">
+                    <div class="text-[10px] text-gray-400">[System] Ready to test.</div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Content Area -->
+        <main class="flex-1 flex flex-col bg-[var(--page-bg)] overflow-hidden relative">
+            <!-- Page Header -->
+            <div class="h-[56px] border-b-2 border-[var(--veeva-orange)] flex items-center justify-between px-6 shrink-0 bg-white">
+                <div class="flex flex-col">
+                    <h1 class="text-[18px] text-[#1d1d1d] font-semibold leading-tight">Process Monitor — Cycle Time Drill Down</h1>
+                    <span class="text-[11px] text-gray-400">Evaluate 3 navigation patterns to drill down from high-level summaries</span>
+                </div>
+                <div class="flex items-center gap-4">
+                    <button class="p-2 hover:bg-gray-100 rounded-full" title="More Actions">
+                        <svg class="icon w-5 h-5" viewBox="0 0 24 24"><path d="M12,16A2,2 0 0,1 14,18A2,2 0 0,1 12,20A2,2 0 0,1 10,18A2,2 0 0,1 12,16M12,10A2,2 0 0,1 14,12A2,2 0 0,1 12,14A2,2 0 0,1 10,12M12,4A2,2 0 0,1 14,6A2,2 0 0,1 12,8A2,2 0 0,1 10,6A2,2 0 0,1 12,4Z" /></svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Dashboard Summary (always visible, reflecting currently viewed time period context) -->
+            <div class="px-6 py-3.5 bg-white border-b flex gap-4 overflow-x-auto shrink-0">
+                <div class="min-w-[420px] border rounded flex flex-col overflow-hidden shadow-sm">
+                    <div class="bg-[#e3edfc] px-3 py-1 text-[13px] font-bold border-b text-gray-700 flex justify-between">
+                        <span>Cycle Time Summary (Days) <span class="text-[10px] text-blue-600 font-normal normal-case italic">(Supports Drill Down)</span></span>
+                        <span id="current-summary-period" class="text-[11px] text-blue-800 font-semibold uppercase">Overall Aggregate</span>
+                    </div>
+                    <div class="flex flex-1 bg-white">
+                        <div class="flex-1 p-2.5 border-r text-center metric-drillcell" data-metric="average">
+                            <div class="text-[11px] text-gray-500 font-bold mb-0.5">Average</div>
+                            <div id="summary-avg" class="text-[18px] font-bold text-[var(--veeva-blue)]">11</div>
+                        </div>
+                        <div class="flex-1 p-2.5 border-r text-center metric-drillcell" data-metric="median">
+                            <div class="text-[11px] text-gray-500 font-bold mb-0.5">Median</div>
+                            <div id="summary-med" class="text-[18px] font-bold">14</div>
+                        </div>
+                        <div class="flex-1 p-2.5 border-r text-center metric-drillcell" data-metric="first-quartile">
+                            <div class="text-[11px] text-gray-500 font-bold mb-0.5">1st Quartile</div>
+                            <div id="summary-q1" class="text-[18px] font-bold text-green-600">6</div>
+                        </div>
+                        <div class="flex-1 p-2.5 text-center metric-drillcell" data-metric="third-quartile">
+                            <div class="text-[11px] text-gray-500 font-bold mb-0.5">3rd Quartile</div>
+                            <div id="summary-q3" class="text-[18px] font-bold text-red-500">20</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="min-w-[240px] border rounded flex flex-col overflow-hidden shadow-sm">
+                    <div class="bg-[#e3edfc] px-3 py-1 text-[13px] font-bold border-b text-gray-700">Volume</div>
+                    <div class="flex flex-1 bg-white">
+                        <div class="flex-1 p-2.5 border-r text-center">
+                            <div class="text-[11px] text-gray-500 font-bold mb-0.5 leading-tight">Entered Start State</div>
+                            <div id="summary-entered-start" class="text-[18px] font-bold text-gray-800">160</div>
+                        </div>
+                        <div class="flex-1 p-2.5 text-center">
+                            <div class="text-[11px] text-gray-500 font-bold mb-0.5 leading-tight">Entered End State</div>
+                            <div id="summary-entered-end" class="text-[18px] font-bold text-gray-800">135</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section Tabs -->
+            <div class="flex border-b shrink-0 px-6 bg-white" id="section-tabs">
+                <div class="section-tab active" onclick="switchTab('overview')">Overview</div>
+                <div class="section-tab" onclick="switchTab('graph')">Process Graph</div>
+                <div class="section-tab" onclick="switchTab('records')">Records</div>
+            </div>
+
+            <!-- ==================== OVERVIEW SECTION ==================== -->
+            <div id="section-overview" class="flex-1 overflow-auto p-6 bg-[#f8f8f8]">
+                <div class="flex flex-col gap-6">
+                    <!-- Chart Card (Expanded to full width) -->
+                    <div class="bg-white border border-[var(--border-color)] rounded-[4px] shadow-sm p-5 relative w-full">
+                        <div class="flex items-center justify-between mb-4 border-b pb-2">
+                            <div>
+                                <h3 class="text-[13px] font-bold text-gray-700 uppercase tracking-wider">CYCLE TIME TREND (DAYS)</h3>
+                                <p class="text-[10px] text-gray-400 mt-0.5">Average case cycle times plotted chronologically by month</p>
+                            </div>
+                            <span id="chart-ux-indicator" class="text-[10px] text-blue-800 bg-blue-50 px-2.5 py-1 border border-blue-200 rounded font-semibold"></span>
+                        </div>
+                        <div class="relative flex justify-center h-[260px] select-none">
+                            <svg id="trend-chart-svg" width="650" height="260" viewBox="0 0 650 260">
+                                <defs>
+                                    <linearGradient id="chart-gradient" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stop-color="var(--veeva-blue)" stop-opacity="0.18"/>
+                                        <stop offset="100%" stop-color="var(--veeva-blue)" stop-opacity="0"/>
+                                    </linearGradient>
+                                </defs>
+                                <!-- Grid Lines -->
+                                <line x1="50" y1="20" x2="610" y2="20" stroke="#f2f2f2" stroke-width="1" />
+                                <line x1="50" y1="60" x2="610" y2="60" stroke="#f2f2f2" stroke-width="1" />
+                                <line x1="50" y1="100" x2="610" y2="100" stroke="#f2f2f2" stroke-width="1" />
+                                <line x1="50" y1="140" x2="610" y2="140" stroke="#f2f2f2" stroke-width="1" />
+                                <line x1="50" y1="180" x2="610" y2="180" stroke="#f2f2f2" stroke-width="1" />
+                                <line x1="50" y1="220" x2="610" y2="220" stroke="#e5e5e5" stroke-width="1.5" />
+
+                                <!-- Horizontal Ticks Y-axis labels -->
+                                <text x="35" y="24" text-anchor="end" font-size="11" fill="#888" font-family="monospace">25d</text>
+                                <text x="35" y="64" text-anchor="end" font-size="11" fill="#888" font-family="monospace">20d</text>
+                                <text x="35" y="104" text-anchor="end" font-size="11" fill="#888" font-family="monospace">15d</text>
+                                <text x="35" y="144" text-anchor="end" font-size="11" fill="#888" font-family="monospace">10d</text>
+                                <text x="35" y="184" text-anchor="end" font-size="11" fill="#888" font-family="monospace">5d</text>
+                                <text x="35" y="224" text-anchor="end" font-size="11" fill="#888" font-family="monospace">0d</text>
+
+                                <!-- Gradient Area -->
+                                <path d="M 70,220 L 70,76 L 175,44 L 280,112 L 385,100 L 490,132 L 595,148 L 595,220 Z" fill="url(#chart-gradient)" />
+
+                                <!-- Trend Line -->
+                                <path d="M 70,76 L 175,44 L 280,112 L 385,100 L 490,132 L 595,148" fill="none" stroke="var(--veeva-blue)" stroke-width="3" />
+
+                                <!-- Vertical line tick indicators -->
+                                <line x1="70" y1="220" x2="70" y2="225" stroke="#999" stroke-width="1"/>
+                                <line x1="175" y1="220" x2="175" y2="225" stroke="#999" stroke-width="1"/>
+                                <line x1="280" y1="220" x2="280" y2="225" stroke="#999" stroke-width="1"/>
+                                <line x1="385" y1="220" x2="385" y2="225" stroke="#999" stroke-width="1"/>
+                                <line x1="490" y1="220" x2="490" y2="225" stroke="#999" stroke-width="1"/>
+                                <line x1="595" y1="220" x2="595" y2="225" stroke="#999" stroke-width="1"/>
+
+                                <!-- Month X-axis labels -->
+                                <text x="70" y="242" text-anchor="middle" font-size="11" fill="#666" font-weight="600">Nov 2025</text>
+                                <text x="175" y="242" text-anchor="middle" font-size="11" fill="#666" font-weight="600">Dec 2025</text>
+                                <text x="280" y="242" text-anchor="middle" font-size="11" fill="#666" font-weight="600">Jan 2026</text>
+                                <text x="385" y="242" text-anchor="middle" font-size="11" fill="#666" font-weight="600">Feb 2026</text>
+                                <text x="490" y="242" text-anchor="middle" font-size="11" fill="#666" font-weight="600">Mar 2026</text>
+                                <text x="595" y="242" text-anchor="middle" font-size="11" fill="#666" font-weight="600">Apr 2026</text>
+
+                                <!-- Points Groups -->
+                                <!-- Nov 2025 (Avg: 18) -->
+                                <g class="chart-point-group" data-idx="5">
+                                    <circle cx="70" cy="76" r="14" fill="transparent" class="chart-point-target" />
+                                    <circle cx="70" cy="76" r="5.5" fill="var(--veeva-blue)" stroke="white" stroke-width="1.8" class="chart-point-node" />
+                                </g>
+                                <!-- Dec 2025 (Avg: 22) -->
+                                <g class="chart-point-group" data-idx="4">
+                                    <circle cx="175" cy="44" r="14" fill="transparent" class="chart-point-target" />
+                                    <circle cx="175" cy="44" r="5.5" fill="var(--veeva-blue)" stroke="white" stroke-width="1.8" class="chart-point-node" />
+                                </g>
+                                <!-- Jan 2026 (Avg: 17) -->
+                                <g class="chart-point-group" data-idx="3">
+                                    <circle cx="280" cy="112" r="14" fill="transparent" class="chart-point-target" />
+                                    <circle cx="280" cy="112" r="5.5" fill="var(--veeva-blue)" stroke="white" stroke-width="1.8" class="chart-point-node" />
+                                </g>
+                                <!-- Feb 2026 (Avg: 15) -->
+                                <g class="chart-point-group" data-idx="2">
+                                    <circle cx="385" cy="100" r="14" fill="transparent" class="chart-point-target" />
+                                    <circle cx="385" cy="100" r="5.5" fill="var(--veeva-blue)" stroke="white" stroke-width="1.8" class="chart-point-node" />
+                                </g>
+                                <!-- Mar 2026 (Avg: 11) -->
+                                <g class="chart-point-group" data-idx="1">
+                                    <circle cx="490" cy="132" r="14" fill="transparent" class="chart-point-target" />
+                                    <circle cx="490" cy="132" r="5.5" fill="var(--veeva-blue)" stroke="white" stroke-width="1.8" class="chart-point-node" />
+                                </g>
+                                <!-- Apr 2026 (Avg: 9) -->
+                                <g class="chart-point-group" data-idx="0">
+                                    <circle cx="595" cy="148" r="14" fill="transparent" class="chart-point-target" />
+                                    <circle cx="595" cy="148" r="5.5" fill="var(--veeva-blue)" stroke="white" stroke-width="1.8" class="chart-point-node" />
+                                </g>
+                            </svg>
+                            <!-- Live Floating Tooltip for SVG chart dots -->
+                            <div id="chart-node-tooltip" class="absolute bg-white border shadow-xl rounded-[4px] p-3 text-[12px] z-50 pointer-events-none" style="display:none; min-width: 170px; border-top: 3px solid var(--veeva-blue);"></div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- ==================== PROCESS GRAPH SECTION ==================== -->
+            <div id="section-graph" class="flex-1 overflow-auto p-6 bg-[#f8f8f8] relative" style="display:none;">
+                <div class="bg-white border rounded p-6 shadow-sm">
+                    <div class="text-[13px] text-gray-500 mb-4">Click a process step to view details and drill down to records.</div>
+                    <svg id="process-graph-svg" width="780" height="160" viewBox="0 0 780 160">
+                        <defs>
+                            <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                                <polygon points="0 0, 8 3, 0 6" fill="#999" />
+                            </marker>
+                        </defs>
+                        <!-- Steps rendered by JS -->
+                    </svg>
+                </div>
+                <!-- Hovercard container -->
+                <div id="graph-hovercard" class="hovercard" style="display:none;"></div>
+            </div>
+
+            <!-- ==================== RECORDS SECTION ==================== -->
+            <div id="section-records" class="flex-1 flex flex-col overflow-hidden" style="display:none;">
+
+                <!-- Time Period Bar -->
+                <div class="time-period-bar shrink-0">
+                    <div class="time-period-selector">
+                        <div class="time-period-btn" id="time-period-btn" onclick="toggleTimePeriodDropdown(event)">
+                            <span id="time-period-label">Loading...</span>
+                            <span style="font-size:10px; color:#666;">&#9660;</span>
+                        </div>
+                        <div class="time-period-dropdown" id="time-period-dropdown" style="display:none;">
+                            <!-- Options rendered by JS -->
+                        </div>
+                    </div>
+                    <div class="flex-1"></div>
+                    <div class="time-period-nav">
+                        <button id="tp-prev" onclick="navTimePeriod(-1)" title="Older time period">&#9664; Older</button>
+                        <button id="tp-next" onclick="navTimePeriod(1)" title="Newer time period">Newer &#9654;</button>
+                    </div>
+                </div>
+
+                <!-- Smart drill-down info banner -->
+                <div id="drill-down-banner" class="info-banner shrink-0" style="display:none;">
+                    <span class="info-icon">&#9432;</span>
+                    <span id="drill-down-banner-text" class="font-medium text-gray-800"></span>
+                    <a id="drill-down-banner-link" onclick="jumpToMostRecent()" class="ml-1 text-blue-700 hover:text-blue-900 font-semibold hover:underline">View latest period</a>
+                    <span style="margin-left:auto; cursor:pointer; color:#999; font-size:16px;" onclick="dismissBanner()">&#10005;</span>
+                </div>
+
+                <!-- Filter Summary + Action Menu (single row) -->
+                <div id="filter-summary-bar" class="bg-white border-b flex flex-col shrink-0">
+                    <div class="min-h-[40px] px-4 py-1.5 flex items-center justify-between gap-4">
+                        <div class="flex items-center gap-2 flex-1">
+                            <div id="filter-toggle-section" class="hidden w-full">
+                                <div class="filter-summary-toggle" onclick="toggleFilterSummary()">
+                                    <span id="filter-caret" class="caret expanded">&#9654;</span>
+                                    <span id="filter-toggle-label">List Filters (0)</span>
+                                    <span id="clear-all-link" class="text-[12px] text-blue-600 hover:text-blue-800 hover:underline cursor-pointer ml-3 font-semibold" onclick="event.stopPropagation(); clearAllFilters()">Clear All Filters</span>
+                                </div>
+                                <div id="filter-summary-rows" class="filter-summary-rows mt-1"></div>
+                            </div>
+                        </div>
+                        <div class="relative shrink-0" id="action-menu-container">
+                            <button class="p-1.5 hover:bg-gray-100 rounded border border-gray-300 bg-white" onclick="toggleActionMenu(event)" title="Actions">
+                                <svg class="icon w-4 h-4" viewBox="0 0 24 24"><path d="M16,12A2,2 0 0,1 18,10A2,2 0 0,1 20,12A2,2 0 0,1 18,14A2,2 0 0,1 16,12M10,12A2,2 0 0,1 12,10A2,2 0 0,1 14,12A2,2 0 0,1 12,14A2,2 0 0,1 10,12M4,12A2,2 0 0,1 6,10A2,2 0 0,1 8,12A2,2 0 0,1 6,14A2,2 0 0,1 4,12Z" /></svg>
+                            </button>
+                            <div id="action-menu-dropdown" class="absolute right-0 top-full mt-1 bg-white border border-[var(--border-color)] rounded shadow-lg z-30 min-w-[180px] py-1" style="display:none;">
+                                <div class="px-3 py-2 text-[13px] hover:bg-gray-100 cursor-pointer" onclick="closeActionMenu()">Edit Columns</div>
+                                <div class="px-3 py-2 text-[13px] hover:bg-gray-100 cursor-pointer" onclick="closeActionMenu()">Truncate Cell Text</div>
+                                <div class="px-3 py-2 text-[13px] hover:bg-gray-100 cursor-pointer" onclick="closeActionMenu()">Freeze Columns</div>
+                                <div class="border-t my-1"></div>
+                                <div class="px-3 py-2 text-[13px] hover:bg-gray-100 cursor-pointer" onclick="closeActionMenu()">Export to CSV</div>
+                                <div class="px-3 py-2 text-[13px] hover:bg-gray-100 cursor-pointer" onclick="closeActionMenu()">Export to Excel</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Data Grid -->
+                <div class="flex-1 overflow-auto p-4 bg-[#f8f8f8]" id="grid-scroll-container">
+                    <div class="border border-[var(--border-color)] bg-white inline-block min-w-full shadow-sm rounded">
+                        <table class="w-full text-left border-collapse" style="table-layout: fixed;">
+                            <thead>
+                                <tr>
+                                    <th class="grid-header w-[150px]" onclick="handleSort('id')">
+                                        <div class="flex items-center justify-between">
+                                            <div class="flex items-center gap-1">ID <span id="sort-icon-id" class="text-xs text-gray-500 w-3"></span></div>
+                                            <div class="text-gray-500 hover:text-black p-1 rounded hover:bg-gray-200" onclick="openHeaderFilter(event, 'id')" title="Filter">
+                                                <svg class="icon" id="filter-icon-id" viewBox="0 0 24 24"><path d="M14,12V19.88C14.04,20.18 13.94,20.5 13.71,20.71C13.32,21.1 12.69,21.1 12.3,20.71L10.29,18.7C10.06,18.47 9.96,18.16 10,17.87V12H9.97L4.21,4.62C3.87,4.19 3.95,3.56 4.38,3.22C4.57,3.08 4.78,3 5,3H19C19.22,3 19.43,3.08 19.62,3.22C20.05,3.56 20.13,4.19 19.79,4.62L14.03,12H14Z" /></svg>
+                                            </div>
+                                        </div>
+                                        <div id="header-filter-id" class="filter-dropdown hidden" onclick="event.stopPropagation()"></div>
+                                    </th>
+                                    <th class="grid-header w-[250px]" onclick="handleSort('name')">
+                                        <div class="flex items-center justify-between">
+                                            <div class="flex items-center gap-1">Name <span id="sort-icon-name" class="text-xs text-gray-500 w-3"></span></div>
+                                            <div class="text-gray-500 hover:text-black p-1 rounded hover:bg-gray-200" onclick="openHeaderFilter(event, 'name')" title="Filter">
+                                                <svg class="icon" id="filter-icon-name" viewBox="0 0 24 24"><path d="M14,12V19.88C14.04,20.18 13.94,20.5 13.71,20.71C13.32,21.1 12.69,21.1 12.3,20.71L10.29,18.7C10.06,18.47 9.96,18.16 10,17.87V12H9.97L4.21,4.62C3.87,4.19 3.95,3.56 4.38,3.22C4.57,3.08 4.78,3 5,3H19C19.22,3 19.43,3.08 19.62,3.22C20.05,3.56 20.13,4.19 19.79,4.62L14.03,12H14Z" /></svg>
+                                            </div>
+                                        </div>
+                                        <div id="header-filter-name" class="filter-dropdown hidden" onclick="event.stopPropagation()"></div>
+                                    </th>
+                                    <th class="grid-header w-[150px]" onclick="handleSort('cycleTime')">
+                                        <div class="flex items-center justify-between">
+                                            <div class="flex items-center gap-1">Cycle Time (Days) <span id="sort-icon-cycleTime" class="text-xs text-gray-500 w-3"></span></div>
+                                            <div class="text-gray-500 hover:text-black p-1 rounded hover:bg-gray-200" onclick="openHeaderFilter(event, 'cycleTime')" title="Filter">
+                                                <svg class="icon" id="filter-icon-cycleTime" viewBox="0 0 24 24"><path d="M14,12V19.88C14.04,20.18 13.94,20.5 13.71,20.71C13.32,21.1 12.69,21.1 12.3,20.71L10.29,18.7C10.06,18.47 9.96,18.16 10,17.87V12H9.97L4.21,4.62C3.87,4.19 3.95,3.56 4.38,3.22C4.57,3.08 4.78,3 5,3H19C19.22,3 19.43,3.08 19.62,3.22C20.05,3.56 20.13,4.19 19.79,4.62L14.03,12H14Z" /></svg>
+                                            </div>
+                                        </div>
+                                        <div id="header-filter-cycleTime" class="filter-dropdown hidden" onclick="event.stopPropagation()"></div>
+                                    </th>
+                                    <th class="grid-header w-[110px]" onclick="handleSort('variant')">
+                                        <div class="flex items-center justify-between">
+                                            <div class="flex items-center gap-1">Variant <span id="sort-icon-variant" class="text-xs text-gray-500 w-3"></span></div>
+                                            <div class="text-gray-500 hover:text-black p-1 rounded hover:bg-gray-200" onclick="openHeaderFilter(event, 'variant')" title="Filter">
+                                                <svg class="icon" id="filter-icon-variant" viewBox="0 0 24 24"><path d="M14,12V19.88C14.04,20.18 13.94,20.5 13.71,20.71C13.32,21.1 12.69,21.1 12.3,20.71L10.29,18.7C10.06,18.47 9.96,18.16 10,17.87V12H9.97L4.21,4.62C3.87,4.19 3.95,3.56 4.38,3.22C4.57,3.08 4.78,3 5,3H19C19.22,3 19.43,3.08 19.62,3.22C20.05,3.56 20.13,4.19 19.79,4.62L14.03,12H14Z" /></svg>
+                                            </div>
+                                        </div>
+                                        <div id="header-filter-variant" class="filter-dropdown hidden" onclick="event.stopPropagation()"></div>
+                                    </th>
+                                    <th class="grid-header w-[110px]" onclick="handleSort('status')">
+                                        <div class="flex items-center justify-between">
+                                            <div class="flex items-center gap-1">Status <span id="sort-icon-status" class="text-xs text-gray-500 w-3"></span></div>
+                                            <div class="text-gray-500 hover:text-black p-1 rounded hover:bg-gray-200" onclick="openHeaderFilter(event, 'status')" title="Filter">
+                                                <svg class="icon" id="filter-icon-status" viewBox="0 0 24 24"><path d="M14,12V19.88C14.04,20.18 13.94,20.5 13.71,20.71C13.32,21.1 12.69,21.1 12.3,20.71L10.29,18.7C10.06,18.47 9.96,18.16 10,17.87V12H9.97L4.21,4.62C3.87,4.19 3.95,3.56 4.38,3.22C4.57,3.08 4.78,3 5,3H19C19.22,3 19.43,3.08 19.62,3.22C20.05,3.56 20.13,4.19 19.79,4.62L14.03,12H14Z" /></svg>
+                                            </div>
+                                        </div>
+                                        <div id="header-filter-status" class="filter-dropdown hidden" onclick="event.stopPropagation()"></div>
+                                    </th>
+                                    <th class="grid-header w-[160px]" onclick="handleSort('date')">
+                                        <div class="flex items-center justify-between">
+                                            <div class="flex items-center gap-1">Selected Date <span id="sort-icon-date" class="text-xs text-gray-500 w-3"></span></div>
+                                            <div class="text-gray-500 hover:text-black p-1 rounded hover:bg-gray-200" onclick="openHeaderFilter(event, 'date')" title="Filter">
+                                                <svg class="icon" id="filter-icon-date" viewBox="0 0 24 24"><path d="M14,12V19.88C14.04,20.18 13.94,20.5 13.71,20.71C13.32,21.1 12.69,21.1 12.3,20.71L10.29,18.7C10.06,18.47 9.96,18.16 10,17.87V12H9.97L4.21,4.62C3.87,4.19 3.95,3.56 4.38,3.22C4.57,3.08 4.78,3 5,3H19C19.22,3 19.43,3.08 19.62,3.22C20.05,3.56 20.13,4.19 19.79,4.62L14.03,12H14Z" /></svg>
+                                            </div>
+                                        </div>
+                                        <div id="header-filter-date" class="filter-dropdown hidden" onclick="event.stopPropagation()"></div>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody id="grid-body"></tbody>
+                        </table>
+                    </div>
+                    <!-- "Showing results" footer -->
+                    <div id="grid-row-limit-msg" class="text-center text-[13px] text-gray-500 py-3" style="display:none;">
+                        <span title="You can use the export action to see all matching rows" style="border-bottom:1px dotted #999; cursor:help;">Showing up to 1000 records.</span>
+                    </div>
+                </div>
+            </div><!-- /section-records -->
+        </main>
+    </div>
+
+    <!-- Global Hovercard container (works across all tabs) -->
+    <div id="overview-hovercard" class="hovercard border-t-[3px]" style="display:none; border-top-color: var(--veeva-orange);"></div>
+
+    <script>
+    // =====================================================================
+    //  MOCK DATA — 6 chronological periods mapped directly to the trend chart
+    // =====================================================================
+    const TOTAL_RECORDS = 412000;
+
+    const timePeriods = [
+        {
+            id: 0, label: 'Apr 1 \u2013 Apr 30, 2026', count: 91402, avg: 9, med: 7, q1: 5, q3: 14, enteredStart: 145, enteredEnd: 120,
+            data: [
+                { id: 'REC-5001', name: 'Clinical Trial Supply Shipments', cycleTime: 4, variant: 'VAR-A', status: 'Completed', date: '2026-04-12' },
+                { id: 'REC-5002', name: 'Site Close-Out Visit Report', cycleTime: 7, variant: 'VAR-C', status: 'Active', date: '2026-04-20' },
+                { id: 'REC-5003', name: 'Investigator CV Submission', cycleTime: 5, variant: 'VAR-B', status: 'In Review', date: '2026-04-18' },
+                { id: 'REC-5004', name: 'Regulatory Binder Approval', cycleTime: 15, variant: 'VAR-D', status: 'Draft', date: '2026-04-05' },
+                { id: 'REC-5005', name: 'IRB Meeting Minutes', cycleTime: 14, variant: 'VAR-A', status: 'Approved', date: '2026-04-02' },
+            ]
+        },
+        {
+            id: 1, label: 'Mar 1 \u2013 Mar 31, 2026', count: 87342, avg: 11, med: 10, q1: 6, q3: 15, enteredStart: 160, enteredEnd: 135,
+            data: [
+                { id: 'REC-4801', name: 'Clinical Study Phase III-B', cycleTime: 11, variant: 'VAR-A', status: 'Active', date: '2026-03-11' },
+                { id: 'REC-4802', name: 'Protocol Amendment 7', cycleTime: 15, variant: 'VAR-A', status: 'In Review', date: '2026-03-10' },
+                { id: 'REC-4803', name: 'Site Monitoring Report Q1', cycleTime: 8, variant: 'VAR-B', status: 'Draft', date: '2026-03-08' },
+                { id: 'REC-4804', name: 'Safety Update Report #12', cycleTime: 22, variant: 'VAR-B', status: 'Active', date: '2026-03-05' },
+                { id: 'REC-4805', name: 'Investigator Brochure v9', cycleTime: 6, variant: 'VAR-A', status: 'Approved', date: '2026-03-03' },
+                { id: 'REC-4806', name: 'Patient Consent Form v4', cycleTime: 4, variant: 'VAR-D', status: 'In Review', date: '2026-03-01' },
+            ]
+        },
+        {
+            id: 2, label: 'Feb 1 \u2013 Feb 28, 2026', count: 92150, avg: 15, med: 14, q1: 8, q3: 21, enteredStart: 185, enteredEnd: 155,
+            data: [
+                { id: 'REC-3901', name: 'Annual Safety Report 2025', cycleTime: 15, variant: 'VAR-A', status: 'Approved', date: '2026-02-25' },
+                { id: 'REC-3902', name: 'Protocol Amendment 6', cycleTime: 24, variant: 'VAR-B', status: 'Active', date: '2026-02-20' },
+                { id: 'REC-3903', name: 'Lab Manual Addendum', cycleTime: 9, variant: 'VAR-B', status: 'Draft', date: '2026-02-14' },
+                { id: 'REC-3904', name: 'Vendor Qualification Report', cycleTime: 20, variant: 'VAR-D', status: 'Completed', date: '2026-02-10' },
+                { id: 'REC-3905', name: 'Bioequivalence Study Design', cycleTime: 7, variant: 'VAR-A', status: 'In Review', date: '2026-02-05' },
+            ]
+        },
+        {
+            id: 3, label: 'Jan 1 \u2013 Jan 31, 2026', count: 98400, avg: 17, med: 16, q1: 10, q3: 22, enteredStart: 190, enteredEnd: 165,
+            data: [
+                { id: 'REC-2801', name: 'Phase II Final Report', cycleTime: 17, variant: 'VAR-C', status: 'Approved', date: '2026-01-28' },
+                { id: 'REC-2802', name: 'Patient Screening Protocol', cycleTime: 8, variant: 'VAR-D', status: 'Active', date: '2026-01-20' },
+                { id: 'REC-2803', name: 'Consent Document Version 3', cycleTime: 5, variant: 'VAR-A', status: 'Active', date: '2026-01-15' },
+                { id: 'REC-2804', name: 'Form FDA-1572 Checklist', cycleTime: 28, variant: 'VAR-B', status: 'In Review', date: '2026-01-08' },
+            ]
+        },
+        {
+            id: 4, label: 'Dec 1 \u2013 Dec 31, 2025', count: 72110, avg: 22, med: 21, q1: 12, q3: 28, enteredStart: 130, enteredEnd: 110,
+            data: [
+                { id: 'REC-1201', name: 'Sponsor-Investigator Agreement', cycleTime: 22, variant: 'VAR-A', status: 'Approved', date: '2025-12-18' },
+                { id: 'REC-1202', name: 'Central Lab Shipping Log', cycleTime: 12, variant: 'VAR-B', status: 'Draft', date: '2025-12-14' },
+                { id: 'REC-1203', name: 'Medical Device Safety Audit', cycleTime: 32, variant: 'VAR-C', status: 'Completed', date: '2025-12-05' },
+            ]
+        },
+        {
+            id: 5, label: 'Nov 1 \u2013 Nov 30, 2025', count: 68150, avg: 18, med: 17, q1: 10, q3: 24, enteredStart: 115, enteredEnd: 95,
+            data: [
+                { id: 'REC-1001', name: 'Site Qualification Visit Report', cycleTime: 18, variant: 'VAR-A', status: 'Approved', date: '2025-11-20' },
+                { id: 'REC-1002', name: 'Pharmacy Manual v1.2', cycleTime: 10, variant: 'VAR-B', status: 'Active', date: '2025-11-15' },
+                { id: 'REC-1003', name: 'Financial Disclosure Form 3455', cycleTime: 26, variant: 'VAR-D', status: 'Draft', date: '2025-11-02' },
+            ]
+        }
+    ];
+
+    const chartPointsMetaData = [
+        { month: 'Apr 2026', idx: 0, avg: '9 Days', count: '91,402 cases', highlight: 'Cycle Time improved 18% since last month.' },
+        { month: 'Mar 2026', idx: 1, avg: '11 Days', count: '87,342 cases', highlight: 'SLA alignment achieved across core variants.' },
+        { month: 'Feb 2026', idx: 2, avg: '15 Days', count: '92,150 cases', highlight: 'Variant B delays added 3.2 days of wait time.' },
+        { month: 'Jan 2026', idx: 3, avg: '17 Days', count: '98,400 cases', highlight: 'Post-holiday volume spike increased queue latency.' },
+        { month: 'Dec 2025', idx: 4, avg: '22 Days', count: '72,110 cases', highlight: 'Severe bottleneck identified during Site Initiation.' },
+        { month: 'Nov 2025', idx: 5, avg: '18 Days', count: '68,150 cases', highlight: 'Baseline performance prior to protocol amendment.' }
+    ];
+
+    // Columns config
+    const columns = [
+        { key: 'id', label: 'ID' },
+        { key: 'name', label: 'Name' },
+        { key: 'cycleTime', label: 'Cycle Time (Days)' },
+        { key: 'variant', label: 'Variant' },
+        { key: 'status', label: 'Status' },
+        { key: 'date', label: 'Selected Date' }
+    ];
+
+    // State Variables
+    let activeTab = 'overview';
+    let currentPeriodIdx = 1; // Default to Mar 2026 (matches 11 days avg)
+    let activeFilters = {};
+    let sortCol = 'id';
+    let sortAsc = true;
+    let openFilterCol = null;
+    let filterSummaryExpanded = true;
+    let showDrillBanner = false;
+    let drillBannerText = '';
+    let currentData = [];
+
+    // Process Graph state
+    let openHovercardStep = null;
+    const graphSteps = [
+        { id: 'STEP-1', label: 'Site Init', x: 20, y: 50, w: 110, h: 40 },
+        { id: 'STEP-2', label: 'Screening', x: 170, y: 50, w: 110, h: 40 },
+        { id: 'STEP-3', label: 'Consent', x: 320, y: 50, w: 110, h: 40 },
+        { id: 'STEP-4', label: 'Review', x: 470, y: 50, w: 110, h: 40 },
+        { id: 'STEP-5', label: 'Approve', x: 620, y: 50, w: 110, h: 40 }
+    ];
+    const graphArrows = [
+        [130, 70, 162, 70],
+        [280, 70, 312, 70],
+        [430, 70, 462, 70],
+        [580, 70, 612, 70]
+    ];
+    const stepVariantMap = {
+        'STEP-1': ['VAR-A', 'VAR-B'],
+        'STEP-2': ['VAR-A', 'VAR-D'],
+        'STEP-3': ['VAR-B', 'VAR-C'],
+        'STEP-4': ['VAR-A', 'VAR-B', 'VAR-C'],
+        'STEP-5': ['VAR-A', 'VAR-D']
+    };
+    const graphVariants = {
+        'VAR-A': { recordCounts: { 0: 2, 1: 3, 2: 2, 3: 1, 4: 1, 5: 1 } },
+        'VAR-B': { recordCounts: { 0: 1, 1: 2, 2: 2, 3: 1, 4: 1, 5: 1 } },
+        'VAR-C': { recordCounts: { 0: 1, 1: 0, 2: 0, 3: 1, 4: 1, 5: 0 } },
+        'VAR-D': { recordCounts: { 0: 1, 1: 1, 2: 1, 3: 1, 4: 0, 5: 1 } }
+    };
+
+    // =====================================================================
+    //  TAB SWITCHING
+    // =====================================================================
+    function switchTab(tab) {
+        activeTab = tab;
+        document.querySelectorAll('.section-tab').forEach((el, i) => {
+            const tabs = ['overview', 'graph', 'records'];
+            el.classList.toggle('active', tabs[i] === tab);
+        });
+        document.getElementById('section-overview').style.display = tab === 'overview' ? '' : 'none';
+        document.getElementById('section-graph').style.display = tab === 'graph' ? '' : 'none';
+        document.getElementById('section-records').style.display = tab === 'records' ? '' : 'none';
+        
+        if (tab === 'graph') {
+            renderGraph();
+        }
+        hideOverviewHovercard();
+        logEvent('System', `Switched to ${tab.toUpperCase()} Tab`);
+    }
+
+    // =====================================================================
+    //  UX INTERACTION MODE MANAGER
+    // =====================================================================
+    let activeUXMode = 'single-click';
+
+    function setUXMode(mode) {
+        activeUXMode = mode;
+        document.body.setAttribute('data-ux-mode', mode);
+        
+        // Update helper tip
+        const tipEl = document.getElementById('ux-guidance-tip');
+        const chartIndicator = document.getElementById('chart-ux-indicator');
+        
+        if (mode === 'single-click') {
+            tipEl.innerHTML = `<strong>Single-Click:</strong> Hovering cards/nodes shows a pointer cursor. Click once to instantly navigate and context-filter the records grid.`;
+            chartIndicator.textContent = "UX: Single-Click Drill Down Enabled";
+            chartIndicator.className = "text-[10px] text-blue-800 bg-blue-50 px-2.5 py-1 border border-blue-200 rounded font-semibold";
+        } else if (mode === 'double-click') {
+            tipEl.innerHTML = `<strong>Double-Click:</strong> Hovering cards/nodes shows a standard pointer. A single click highlights/selects, but <em>double-clicking</em> triggers the transition.`;
+            chartIndicator.textContent = "UX: Double-Click Drill Down Enabled";
+            chartIndicator.className = "text-[10px] text-purple-800 bg-purple-50 px-2.5 py-1 border border-purple-200 rounded font-semibold";
+        } else if (mode === 'hovercard') {
+            tipEl.innerHTML = `<strong>Hovercard &amp; Link:</strong> Hovering cards/nodes displays a detailed popup window containing a dedicated, high-contrast link to execute the drill-down.`;
+            chartIndicator.textContent = "UX: Hovercard Link Drill Down Enabled";
+            chartIndicator.className = "text-[10px] text-amber-800 bg-amber-50 px-2.5 py-1 border border-amber-200 rounded font-semibold";
+        }
+
+        // Apply visual classes
+        document.querySelectorAll('.metric-cue-badge').forEach(badge => {
+            if (mode === 'single-click') badge.textContent = "Single-Click";
+            else if (mode === 'double-click') badge.textContent = "Double-Click";
+            else if (mode === 'hovercard') badge.textContent = "Hover for Link";
+        });
+
+        logEvent('UX Mode', `Switched active UX interaction standard to: ${mode.toUpperCase()}`);
+        hideOverviewHovercard();
+        resetHighlightCell();
+    }
+
+    function logEvent(source, msg) {
+        const logger = document.getElementById('feedback-log-container');
+        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        logger.innerHTML += `<div class="text-[10px] text-gray-300 mt-1"><span class="text-blue-400">[${time}]</span> <span class="text-green-400 font-bold">${source}:</span> ${msg}</div>`;
+        logger.scrollTop = logger.scrollHeight;
+    }
+
+    function clearInteractionLog() {
+        document.getElementById('feedback-log-container').innerHTML = `<div class="text-[10px] text-gray-400">[System] Logger cleared. Ready.</div>`;
+    }
+
+    // Metric cells interactive handlers
+    let highlightedCell = null;
+    function resetHighlightCell() {
+        if (highlightedCell) {
+            highlightedCell.classList.remove('interactive-pulse');
+            highlightedCell = null;
+        }
+    }
+
+    // =====================================================================
+    //  OVERVIEW INTERACTION ENGINE
+    // =====================================================================
+    let hovercardTimeout = null;
+
+    function setupOverviewEvents() {
+        // Metric Cells Click / Hover
+        const cells = document.querySelectorAll('.metric-drillcell');
+        cells.forEach(cell => {
+            const metric = cell.getAttribute('data-metric');
+            
+            // Mouse Enter
+            cell.addEventListener('mouseenter', (e) => {
+                if (activeUXMode === 'hovercard') {
+                    showMetricHovercard(cell, metric);
+                }
+            });
+
+            // Mouse Leave
+            cell.addEventListener('mouseleave', (e) => {
+                if (activeUXMode === 'hovercard') {
+                    hideOverviewHovercard();
+                }
+            });
+
+            // Single click
+            cell.addEventListener('click', (e) => {
+                if (activeUXMode === 'single-click') {
+                    e.stopPropagation();
+                    logEvent('Metric Click', `Executing Single-Click Drill Down for "${metric}"`);
+                    drillDownFromMetric(metric);
+                } else if (activeUXMode === 'double-click') {
+                    e.stopPropagation();
+                    resetHighlightCell();
+                    highlightedCell = cell;
+                    cell.classList.add('interactive-pulse');
+                    logEvent('Metric Click', `Selected "${metric}" metric cell. [Double-click required to navigate]`);
+                }
+            });
+
+            // Double click
+            cell.addEventListener('dblclick', (e) => {
+                if (activeUXMode === 'double-click') {
+                    e.stopPropagation();
+                    logEvent('Metric Dbl-Click', `Executing Double-Click Drill Down for "${metric}"`);
+                    resetHighlightCell();
+                    drillDownFromMetric(metric);
+                }
+            });
+        });
+
+        // Chart Point Targets (for the SVG)
+        const pointTargets = document.querySelectorAll('.chart-point-target');
+        pointTargets.forEach(tgt => {
+            const parent = tgt.parentNode;
+            const idx = parseInt(parent.getAttribute('data-idx'));
+            const metadata = chartPointsMetaData.find(p => p.idx === idx);
+            
+            tgt.addEventListener('mouseenter', (e) => {
+                showChartTooltip(tgt, metadata, e);
+            });
+            
+            tgt.addEventListener('mouseleave', () => {
+                hideChartTooltip();
+                hideOverviewHovercard();
+            });
+
+            tgt.addEventListener('click', (e) => {
+                if (activeUXMode === 'single-click') {
+                    e.stopPropagation();
+                    logEvent('Chart Click', `Executing Single-Click Drill Down for ${metadata.month}`);
+                    drillDownFromChart(idx);
+                } else if (activeUXMode === 'double-click') {
+                    e.stopPropagation();
+                    logEvent('Chart Click', `Selected node ${metadata.month}. [Double-click required to navigate]`);
+                }
+            });
+
+            tgt.addEventListener('dblclick', (e) => {
+                if (activeUXMode === 'double-click') {
+                    e.stopPropagation();
+                    logEvent('Chart Dbl-Click', `Executing Double-Click Drill Down for ${metadata.month}`);
+                    drillDownFromChart(idx);
+                }
+            });
+        });
+
+        // Setup the hovercard hover bridging so cursor transit does not close it
+        const hcEl = document.getElementById('overview-hovercard');
+        hcEl.addEventListener('mouseenter', () => {
+            if (hovercardTimeout) clearTimeout(hovercardTimeout);
+        });
+        hcEl.addEventListener('mouseleave', () => {
+            hcEl.style.display = 'none';
+        });
+    }
+
+    // Tooltip renderer for SVG Line Chart
+    function showChartTooltip(element, metadata, event) {
+        // Always use high-fidelity chart hovercard
+        document.getElementById('chart-node-tooltip').style.display = 'none';
+        showChartHovercard(element, metadata);
+    }
+
+    function hideChartTooltip() {
+        document.getElementById('chart-node-tooltip').style.display = 'none';
+    }
+
+    // Hovercard displays
+    function showMetricHovercard(element, metric) {
+        if (hovercardTimeout) clearTimeout(hovercardTimeout);
+        const hc = document.getElementById('overview-hovercard');
+        let title = "", subtitle = "", clickAction = "";
+        
+        if (metric === 'average') {
+            title = "Average Cycle Time (SLA)";
+            subtitle = "SLA metrics monitor typical queue clearance. Drill down into the 8-14 Days cycle time records to review compliance factors.";
+            clickAction = `drillDownFromMetric('average')`;
+        } else if (metric === 'median') {
+            title = "Median Cycle Time Analysis";
+            subtitle = "Median is resistant to outlier skew. Drill down into middle tier cases between 12-16 Days to verify standard process stability.";
+            clickAction = `drillDownFromMetric('median')`;
+        } else if (metric === 'first-quartile') {
+            title = "Top Velocity Performers";
+            subtitle = "The fastest 25% of cases (&le; 6 Days). Analyze efficient patterns to copy as best practices across other teams.";
+            clickAction = `drillDownFromMetric('first-quartile')`;
+        } else if (metric === 'third-quartile') {
+            title = "Bottleneck & Backlog Alert";
+            subtitle = "The slowest 25% of cases (&ge; 20 Days). Represents high SLA risk. Drill down to investigate delays, deviations, and CAPAs.";
+            clickAction = `drillDownFromMetric('third-quartile')`;
+        }
+
+        hc.style.borderTopColor = 'var(--veeva-orange)';
+        hc.innerHTML = `
+            <h4>${title}</h4>
+            <p class="text-[11px] text-gray-500 leading-normal m-0 mb-3">${subtitle}</p>
+            <div class="border-t pt-2 flex justify-end">
+                <a class="text-[12px] text-[var(--veeva-blue)] font-bold hover:text-[var(--veeva-blue-hover)] hover:underline cursor-pointer flex items-center gap-1" onclick="${clickAction}; hideOverviewHovercard();">
+                    Drill down to Records (Filtered) &rarr;
+                </a>
+            </div>
+        `;
+
+        const rect = element.getBoundingClientRect();
+        // Position hovercard directly below the metrics card cell, aligned horizontally
+        let left = rect.left + window.scrollX;
+        let top = rect.bottom + window.scrollY + 6;
+
+        // Adjust left if offscreen
+        if (left + 240 > window.innerWidth) {
+            left = window.innerWidth - 250;
+        }
+
+        hc.style.left = left + 'px';
+        hc.style.top = top + 'px';
+        hc.style.display = 'block';
+    }
+
+    function showChartHovercard(element, metadata) {
+        if (hovercardTimeout) clearTimeout(hovercardTimeout);
+        const hc = document.getElementById('overview-hovercard');
+        hc.style.borderTopColor = 'var(--veeva-blue)';
+        
+        let footerHTML = '';
+        if (activeUXMode === 'hovercard') {
+            footerHTML = `
+                <div class="border-t pt-2 flex justify-end">
+                    <a class="text-[12px] text-[var(--veeva-blue)] font-bold hover:text-[var(--veeva-blue-hover)] hover:underline cursor-pointer flex items-center gap-1" onclick="drillDownFromChart(${metadata.idx}); hideOverviewHovercard();">
+                        Drill down to ${metadata.month} records &rarr;
+                    </a>
+                </div>
+            `;
+        }
+
+        hc.innerHTML = `
+            <h4>${metadata.month} Performance</h4>
+            <div class="text-[11px] text-gray-600 leading-relaxed mb-3">
+                During <strong>${metadata.month}</strong>, average cycle time reached <strong>${metadata.avg}</strong> across a volume of <strong>${metadata.count}</strong>.
+            </div>
+            ${footerHTML}
+        `;
+
+        const rect = element.getBoundingClientRect();
+        // Center horizontally below the chart node
+        let left = rect.left + window.scrollX - 120 + 14; 
+        let top = rect.bottom + window.scrollY + 8;
+
+        if (left < 10) left = 10;
+        if (left + 240 > window.innerWidth) {
+            left = window.innerWidth - 250;
+        }
+
+        hc.style.left = left + 'px';
+        hc.style.top = top + 'px';
+        hc.style.display = 'block';
+    }
+
+    function hideOverviewHovercard() {
+        if (hovercardTimeout) clearTimeout(hovercardTimeout);
+        hovercardTimeout = setTimeout(() => {
+            document.getElementById('overview-hovercard').style.display = 'none';
+        }, 250); // small delay to let cursor transition into the hovercard smoothly
+    }
+
+    // Close hovercards on outside clicks
+    document.addEventListener('click', (e) => {
+        const hc = document.getElementById('overview-hovercard');
+        if (hc && !hc.contains(e.target) && !e.target.closest('.metric-drillcell') && !e.target.closest('.chart-point-target')) {
+            hc.style.display = 'none';
+        }
+    });
+
+    // =====================================================================
+    //  SMART DRILL-DOWN LOGIC
+    // =====================================================================
+    function drillDownFromChart(periodIdx) {
+        // Clear existing grid filters first to avoid compounding filters
+        activeFilters = {};
+        
+        // Select corresponding month chunk
+        currentPeriodIdx = periodIdx;
+        const tp = timePeriods[periodIdx];
+        
+        showDrillBanner = false;
+        drillBannerText = '';
+        
+        // Go to records tab
+        switchTab('records');
+        renderTimePeriodBar();
+        applyFiltersAndSort();
+    }
+
+    function drillDownFromMetric(metricKey) {
+        // Reset active filters
+        activeFilters = {};
+        
+        // Determine the filter criteria based on the selected metric
+        let filterVal = "";
+        let filterOp = "";
+        let filterText = "";
+        
+        if (metricKey === 'average') {
+            filterOp = 'between';
+            filterVal = '8-14';
+            filterText = '8-14 Days';
+        } else if (metricKey === 'median') {
+            filterOp = 'between';
+            filterVal = '12-16';
+            filterText = '12-16 Days';
+        } else if (metricKey === 'first-quartile') {
+            filterOp = 'less_than_or_equal';
+            filterVal = '6';
+            filterText = '<= 6 Days';
+        } else if (metricKey === 'third-quartile') {
+            filterOp = 'greater_than_or_equal';
+            filterVal = '20';
+            filterText = '>= 20 Days';
+        }
+
+        // Apply cycle time filter
+        activeFilters['cycleTime'] = { operator: filterOp, value: filterVal, text: filterText };
+        
+        // Default time period remains Mar 2026 or is retained
+        showDrillBanner = false;
+        drillBannerText = '';
+        
+        // Switch tab
+        switchTab('records');
+        renderTimePeriodBar();
+        applyFiltersAndSort();
+    }
+
+    // =====================================================================
+    //  TIME PERIOD CONTROLS
+    // =====================================================================
+    function selectTimePeriod(idx, fromDrillDown) {
+        currentPeriodIdx = idx;
+        if (!fromDrillDown) { showDrillBanner = false; }
+        renderTimePeriodBar();
+        applyFiltersAndSort();
+        updateDashboardAggregates();
+    }
+
+    function renderTimePeriodBar() {
+        const period = timePeriods[currentPeriodIdx];
+        document.getElementById('time-period-label').textContent = period.label;
+        
+        document.getElementById('tp-prev').disabled = currentPeriodIdx >= timePeriods.length - 1;
+        document.getElementById('tp-next').disabled = currentPeriodIdx <= 0;
+
+        // Banner
+        const banner = document.getElementById('drill-down-banner');
+        if (showDrillBanner) {
+            banner.style.display = 'flex';
+            document.getElementById('drill-down-banner-text').textContent = drillBannerText;
+        } else {
+            banner.style.display = 'none';
+        }
+    }
+
+    function toggleTimePeriodDropdown(e) {
+        e.stopPropagation();
+        const dd = document.getElementById('time-period-dropdown');
+        if (dd.style.display === 'none') {
+            dd.innerHTML = timePeriods.map((tp, i) => `
+                <div class="time-period-option ${i === currentPeriodIdx ? 'active' : ''}" onclick="event.stopPropagation(); selectTimePeriod(${i}); document.getElementById('time-period-dropdown').style.display='none';">
+                    <span>${tp.label}</span>
+                    <span class="period-count">${tp.count.toLocaleString()} cases</span>
+                </div>
+            `).join('');
+            dd.style.display = '';
+        } else {
+            dd.style.display = 'none';
+        }
+    }
+
+    function navTimePeriod(dir) {
+        const next = currentPeriodIdx - dir; 
+        if (next >= 0 && next < timePeriods.length) selectTimePeriod(next);
+    }
+
+    function jumpToMostRecent() {
+        // reset filters
+        activeFilters = {};
+        showDrillBanner = false;
+        selectTimePeriod(0);
+    }
+
+    function dismissBanner() {
+        showDrillBanner = false;
+        document.getElementById('drill-down-banner').style.display = 'none';
+    }
+
+    // Close time dropdown on outside click
+    document.addEventListener('click', () => {
+        document.getElementById('time-period-dropdown').style.display = 'none';
+    });
+
+    // =====================================================================
+    //  DASHBOARD AGGREGATE UPDATE (UPPER SUMMARY BOX)
+    // =====================================================================
+    function updateDashboardAggregates() {
+        const tp = timePeriods[currentPeriodIdx];
+        
+        // Update stats
+        document.getElementById('current-summary-period').textContent = tp.label;
+        document.getElementById('summary-avg').textContent = tp.avg;
+        document.getElementById('summary-med').textContent = tp.med;
+        document.getElementById('summary-q1').textContent = tp.q1;
+        document.getElementById('summary-q3').textContent = tp.q3;
+        
+        // Update counts
+        document.getElementById('summary-entered-start').textContent = tp.enteredStart.toLocaleString();
+        document.getElementById('summary-entered-end').textContent = tp.enteredEnd.toLocaleString();
+    }
+
+    // =====================================================================
+    //  PROCESS GRAPH
+    // =====================================================================
+    function renderGraph() {
+        const svg = document.getElementById('process-graph-svg');
+        const defs = svg.querySelector('defs');
+        svg.innerHTML = '';
+        svg.appendChild(defs);
+
+        // Arrows
+        graphArrows.forEach(([x1, y1, x2, y2]) => {
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', x1); line.setAttribute('y1', y1);
+            line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+            line.setAttribute('class', 'graph-arrow');
+            svg.appendChild(line);
+        });
+
+        // Steps
+        graphSteps.forEach(step => {
+            const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            g.setAttribute('data-step', step.id);
+            g.style.cursor = 'pointer';
+            g.addEventListener('click', (e) => { e.stopPropagation(); showStepHovercard(step, e); });
+
+            const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            rect.setAttribute('x', step.x); rect.setAttribute('y', step.y);
+            rect.setAttribute('width', step.w); rect.setAttribute('height', step.h);
+            rect.setAttribute('rx', 6);
+            rect.setAttribute('class', 'graph-step');
+            g.appendChild(rect);
+
+            const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            text.setAttribute('x', step.x + step.w / 2);
+            text.setAttribute('y', step.y + step.h / 2 + 4);
+            text.setAttribute('text-anchor', 'middle');
+            text.setAttribute('class', 'graph-step-label');
+            text.textContent = step.label;
+            g.appendChild(text);
+
+            svg.appendChild(g);
+        });
+    }
+
+    function showStepHovercard(step, event) {
+        const hc = document.getElementById('graph-hovercard');
+        if (openHovercardStep === step.id) {
+            hc.style.display = 'none';
+            openHovercardStep = null;
+            return;
+        }
+        openHovercardStep = step.id;
+        const variants = stepVariantMap[step.id] || [];
+        const totalForStep = variants.reduce((sum, vid) => {
+            return sum + Object.values(graphVariants[vid].recordCounts).reduce((a, b) => a + b, 0);
+        }, 0);
+
+        hc.innerHTML = `
+            <h4>${step.label} Node Details</h4>
+            <div class="hc-row"><span class="hc-label">Associated Variants:</span><span>${variants.length}</span></div>
+            <div class="hc-row"><span class="hc-label">Simulated Total:</span><span>${totalForStep} items</span></div>
+            <div style="border-top:1px solid #eee; margin-top:8px; padding-top:8px;">
+                ${variants.map(vid => {
+                    const total = Object.values(graphVariants[vid].recordCounts).reduce((a,b) => a+b, 0);
+                    return `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                        <span style="font-size:12px; font-weight: 600;">${vid} (${total} items)</span>
+                        <a class="hc-link" style="margin:0; font-size:11px;" onclick="drillDownFromGraph('${vid}')">View Records</a>
+                    </div>`;
+                }).join('')}
+            </div>
+        `;
+
+        // Position near the step
+        const graphContainer = document.getElementById('section-graph');
+        const svgRect = document.getElementById('process-graph-svg').getBoundingClientRect();
+        const containerRect = graphContainer.getBoundingClientRect();
+        hc.style.left = (step.x + step.w + svgRect.left - containerRect.left + 12) + 'px';
+        hc.style.top = (step.y + svgRect.top - containerRect.top) + 'px';
+        hc.style.display = '';
+    }
+
+    // Close process graph hovercard on outside click
+    document.addEventListener('click', (e) => {
+        const hc = document.getElementById('graph-hovercard');
+        if (hc && !hc.contains(e.target) && !e.target.closest('.graph-step')) {
+            hc.style.display = 'none';
+            openHovercardStep = null;
+        }
+    });
+
+    function drillDownFromGraph(variantId) {
+        document.getElementById('graph-hovercard').style.display = 'none';
+        openHovercardStep = null;
+
+        const counts = graphVariants[variantId].recordCounts;
+
+        // Find time period with most records for this variant
+        let bestPeriod = 0;
+        let bestCount = counts[0] || 0;
+        timePeriods.forEach((tp, i) => {
+            if ((counts[i] || 0) > bestCount) { bestCount = counts[i]; bestPeriod = i; }
+        });
+
+        // Apply variant filter
+        activeFilters = { variant: { operator: 'in', value: variantId } };
+
+        if (bestPeriod !== 0) {
+            showDrillBanner = true;
+            drillBannerText = `Showing historical period with peak activity for ${variantId}: ${timePeriods[bestPeriod].label}`;
+            currentPeriodIdx = bestPeriod;
+        } else {
+            showDrillBanner = false;
+            currentPeriodIdx = 0;
+        }
+
+        switchTab('records');
+        renderTimePeriodBar();
+        applyFiltersAndSort();
+    }
+
+    // =====================================================================
+    //  GRID RENDERING
+    // =====================================================================
+    const MAX_GRID_ROWS = 1000;
+    const tbody = document.getElementById('grid-body');
+
+    function renderGrid(data) {
+        tbody.innerHTML = '';
+        const limitMsg = document.getElementById('grid-row-limit-msg');
+        const period = timePeriods[currentPeriodIdx];
+
+        if (data.length === 0) {
+            const hasFilters = Object.keys(activeFilters).length > 0;
+            const msg = hasFilters
+                ? `No records match the current filters in this time period (${period.label}).`
+                : `No records in this time period.`;
+            tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-gray-500 text-sm leading-relaxed">
+                ${msg}
+                ${hasFilters ? `<br><span class="text-[12px]"><a class="text-blue-600 hover:text-blue-800 cursor-pointer font-bold underline" onclick="clearAllFilters()">Clear All Filters</a> or try a different time period.</span>` : ''}
+            </td></tr>`;
+            limitMsg.style.display = 'none';
+        } else {
+            const displayRows = data.slice(0, MAX_GRID_ROWS);
+            const atLimit = displayRows.length < data.length;
+
+            displayRows.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.className = 'grid-row';
+                
+                // Highlight rows that are outliers (>= 20 days) in light red
+                let highlightClass = "";
+                if (row.cycleTime >= 20) highlightClass = "text-red-600 font-semibold";
+                else if (row.cycleTime <= 6) highlightClass = "text-green-600 font-semibold";
+
+                tr.innerHTML = `
+                    <td class="grid-cell text-blue-600 hover:underline cursor-pointer font-medium">${row.id}</td>
+                    <td class="grid-cell">${row.name}</td>
+                    <td class="grid-cell ${highlightClass}">${row.cycleTime} Days</td>
+                    <td class="grid-cell">${row.variant}</td>
+                    <td class="grid-cell">${row.status}</td>
+                    <td class="grid-cell">${row.date}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            limitMsg.style.display = atLimit ? '' : 'none';
+        }
+
+        updateSortIcons();
+        updateFilterIcons();
+        updateDashboardAggregates();
+    }
+
+    // =====================================================================
+    //  ACTION MENU
+    // =====================================================================
+    function toggleActionMenu(e) {
+        e.stopPropagation();
+        const dd = document.getElementById('action-menu-dropdown');
+        dd.style.display = dd.style.display === 'none' ? '' : 'none';
+    }
+    function closeActionMenu() {
+        const dd = document.getElementById('action-menu-dropdown');
+        if (dd) dd.style.display = 'none';
+    }
+    document.addEventListener('click', () => { closeActionMenu(); });
+
+    // =====================================================================
+    //  SORTING
+    // =====================================================================
+    function handleSort(col) {
+        if (sortCol === col) { sortAsc = !sortAsc; } else { sortCol = col; sortAsc = true; }
+        applyFiltersAndSort();
+    }
+
+    function updateSortIcons() {
+        columns.forEach(c => {
+            const el = document.getElementById(`sort-icon-${c.key}`);
+            if (el) el.innerText = sortCol === c.key ? (sortAsc ? '\u25B2' : '\u25BC') : '';
+        });
+    }
+
+    function updateFilterIcons() {
+        columns.forEach(c => {
+            const el = document.getElementById(`filter-icon-${c.key}`);
+            if (el) el.style.fill = activeFilters[c.key] ? 'var(--veeva-blue)' : 'currentColor';
+        });
+    }
+
+    // =====================================================================
+    //  FILTERING ENGINE
+    // =====================================================================
+    const filterOperators = [
+        { value: 'in', label: 'equals' },
+        { value: 'not_in', label: 'does not equal' },
+        { value: 'contains', label: 'contains' },
+        { value: 'not_contains', label: 'does not contain' }
+    ];
+
+    function closeAllFilterDropdowns() {
+        columns.forEach(c => {
+            const el = document.getElementById(`header-filter-${c.key}`);
+            if (el) el.classList.add('hidden');
+        });
+        openFilterCol = null;
+    }
+
+    function openHeaderFilter(event, colKey) {
+        event.stopPropagation();
+        const dd = document.getElementById(`header-filter-${colKey}`);
+        const wasOpen = !dd.classList.contains('hidden');
+        closeAllFilterDropdowns();
+        if (wasOpen) return;
+
+        openFilterCol = colKey;
+        const existing = activeFilters[colKey];
+        const currentOp = existing ? existing.operator : 'in';
+        const currentVal = existing ? existing.value : '';
+
+        // Handle numeric Operators specially for Cycle Time
+        let opSelectorHTML = "";
+        if (colKey === 'cycleTime') {
+            opSelectorHTML = `
+                <select id="filter-op-${colKey}">
+                    <option value="in" ${currentOp === 'in' ? 'selected' : ''}>equals</option>
+                    <option value="greater_than_or_equal" ${currentOp === 'greater_than_or_equal' ? 'selected' : ''}>&ge; (greater than/equal)</option>
+                    <option value="less_than_or_equal" ${currentOp === 'less_than_or_equal' ? 'selected' : ''}>&le; (less than/equal)</option>
+                    <option value="between" ${currentOp === 'between' ? 'selected' : ''}>between (e.g. 8-14)</option>
+                </select>
+            `;
+        } else {
+            opSelectorHTML = `
+                <select id="filter-op-${colKey}">
+                    ${filterOperators.map(op => `<option value="${op.value}" ${op.value === currentOp ? 'selected' : ''}>${op.label}</option>`).join('')}
+                </select>
+            `;
+        }
+
+        dd.innerHTML = `
+            ${opSelectorHTML}
+            <input type="text" id="filter-val-${colKey}" placeholder="Enter search constraint..." value="${currentVal}">
+            <div class="filter-actions">
+                <button class="text-[12px] text-gray-500 hover:text-gray-700 px-2 py-1 cursor-pointer" onclick="clearHeaderFilter('${colKey}')">Clear</button>
+                <button class="text-[12px] bg-[var(--veeva-blue)] text-white px-3 py-1 rounded cursor-pointer hover:bg-[var(--veeva-blue-hover)]" onclick="applyHeaderFilter('${colKey}')">Apply</button>
+            </div>
+        `;
+        dd.classList.remove('hidden');
+        const valInput = document.getElementById(`filter-val-${colKey}`);
+        if (valInput) {
+            valInput.focus();
+            valInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') applyHeaderFilter(colKey);
+                if (e.key === 'Escape') closeAllFilterDropdowns();
+            });
+        }
+    }
+
+    function applyHeaderFilter(colKey) {
+        const op = document.getElementById(`filter-op-${colKey}`).value;
+        const val = document.getElementById(`filter-val-${colKey}`).value.trim();
+        if (val) { 
+            let displayLabel = val;
+            if (op === 'less_than_or_equal') displayLabel = `<= ${val} Days`;
+            else if (op === 'greater_than_or_equal') displayLabel = `>= ${val} Days`;
+            else if (op === 'between') displayLabel = `${val} Days`;
+            activeFilters[colKey] = { operator: op, value: val, text: displayLabel }; 
+        } else { 
+            delete activeFilters[colKey]; 
+        }
+        closeAllFilterDropdowns();
+        applyFiltersAndSort();
+    }
+
+    function clearHeaderFilter(colKey) {
+        delete activeFilters[colKey];
+        closeAllFilterDropdowns();
+        applyFiltersAndSort();
+    }
+
+    function removeFilter(colKey) { delete activeFilters[colKey]; applyFiltersAndSort(); }
+
+    function clearAllFilters() { activeFilters = {}; applyFiltersAndSort(); }
+
+    // =====================================================================
+    //  APPLY FILTERS + SORT (Live computation)
+    // =====================================================================
+    function applyFiltersAndSort() {
+        const periodData = timePeriods[currentPeriodIdx].data;
+        currentData = periodData.filter(row => {
+            for (const [colKey, filter] of Object.entries(activeFilters)) {
+                if (colKey === 'cycleTime') {
+                    const cellVal = Number(row[colKey]);
+                    const filterVal = filter.value; 
+                    if (filter.operator === 'between') {
+                        const parts = filterVal.split('-');
+                        const low = Number(parts[0]);
+                        const high = Number(parts[1]);
+                        if (cellVal < low || cellVal > high) return false;
+                    } else if (filter.operator === 'less_than_or_equal') {
+                        const limit = Number(filterVal);
+                        if (cellVal > limit) return false;
+                    } else if (filter.operator === 'greater_than_or_equal') {
+                        const limit = Number(filterVal);
+                        if (cellVal < limit) return false;
+                    } else if (filter.operator === 'in') {
+                        if (cellVal !== Number(filterVal)) return false;
+                    }
+                } else {
+                    const cellVal = String(row[colKey]).toLowerCase();
+                    const filterVal = String(filter.value).toLowerCase();
+                    switch (filter.operator) {
+                        case 'in': if (cellVal !== filterVal) return false; break;
+                        case 'not_in': if (cellVal === filterVal) return false; break;
+                        case 'contains': if (!cellVal.includes(filterVal)) return false; break;
+                        case 'not_contains': if (cellVal.includes(filterVal)) return false; break;
+                    }
+                }
+            }
+            return true;
+        });
+        
+        if (sortCol) {
+            currentData.sort((a, b) => {
+                let vA = a[sortCol];
+                let vB = b[sortCol];
+                if (typeof vA === 'string') {
+                    vA = vA.toLowerCase();
+                    vB = vB.toLowerCase();
+                }
+                if (vA < vB) return sortAsc ? -1 : 1;
+                if (vA > vB) return sortAsc ? 1 : -1;
+                return 0;
+            });
+        }
+        renderGrid(currentData);
+        renderFilterSummary();
+    }
+
+    // =====================================================================
+    //  FILTER SUMMARY (collapsible banner above table)
+    // =====================================================================
+    function toggleFilterSummary() {
+        filterSummaryExpanded = !filterSummaryExpanded;
+        document.getElementById('filter-caret').classList.toggle('expanded', filterSummaryExpanded);
+        document.getElementById('filter-summary-rows').style.display = filterSummaryExpanded ? '' : 'none';
+    }
+
+    function renderFilterSummary() {
+        const section = document.getElementById('filter-toggle-section');
+        const label = document.getElementById('filter-toggle-label');
+        const rows = document.getElementById('filter-summary-rows');
+        const keys = Object.keys(activeFilters);
+        section.classList.toggle('hidden', keys.length === 0);
+        label.textContent = `List Filters (${keys.length})`;
+        rows.innerHTML = '';
+        rows.style.display = filterSummaryExpanded ? '' : 'none';
+        
+        keys.forEach(colKey => {
+            const col = columns.find(c => c.key === colKey);
+            const f = activeFilters[colKey];
+            const row = document.createElement('div');
+            row.className = 'filter-summary-row';
+            
+            const displayValue = f.text || f.value;
+            row.innerHTML = `
+                <span class="text-[13px] text-gray-700">
+                    <strong>${col.label}:</strong> <span>${displayValue}</span>
+                    <span class="filter-remove text-gray-400 hover:text-red-700 ml-1.5 cursor-pointer font-bold inline-flex items-center align-middle" onclick="removeFilter('${colKey}')" title="Remove filter">&#10005;</span>
+                </span>
+            `;
+            rows.appendChild(row);
+        });
+    }
+
+    // Close header filters on outside click
+    document.addEventListener('click', (e) => {
+        if (openFilterCol) {
+            const dd = document.getElementById(`header-filter-${openFilterCol}`);
+            if (dd && !dd.contains(e.target)) closeAllFilterDropdowns();
+        }
+    });
+
+    // =====================================================================
+    //  INIT ENGINE
+    // =====================================================================
+    setUXMode('single-click');
+    setupOverviewEvents();
+    switchTab('overview');
+    renderTimePeriodBar();
+    applyFiltersAndSort();
+    </script>
+</body>
+</html>
