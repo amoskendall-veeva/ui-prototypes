@@ -1,0 +1,1289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Process Map Variants</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --veeva-blue: #1453b8;
+        --orange: #e07b12;
+        --orange-bg: #fff4e5;
+        --text-main: #1d1d1d;
+        --text-muted: #6b7280;
+        --border: #e5e7eb;
+        --bg: #f6f8fb;
+        --pw: 64px;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: 'Roboto', system-ui, sans-serif; color: var(--text-main); background: var(--bg); font-size: 13px; }
+    .wrap { max-width: 1600px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 22px; font-weight: 700; margin: 4px 0 6px; }
+    h2 { font-size: 16px; font-weight: 700; margin: 2px 0 0; }
+    .eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--veeva-blue); }
+    .prose { color: #374151; line-height: 1.55; max-width: 980px; margin: 0; }
+    .hint { font-size: 12px; color: var(--text-muted); line-height: 1.5; margin: 0 0 10px; }
+    .muted { color: var(--text-muted); }
+    .card { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 18px 20px; margin-bottom: 18px; min-width: 0; }
+    .card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 10px; }
+    .tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; }
+    .tools .sep { width: 1px; height: 22px; background: var(--border); margin: 0 4px; }
+    button { font: inherit; font-size: 12px; border: 1px solid #cbd5e1; background: #fff; border-radius: 4px; padding: 4px 10px; cursor: pointer; color: #1f2937; }
+    button:hover:not(:disabled) { background: #f1f5f9; }
+    button:disabled { opacity: .45; cursor: default; }
+    button.primary { background: var(--veeva-blue); border-color: var(--veeva-blue); color: #fff; }
+    button.primary:hover:not(:disabled) { background: #0f4396; }
+    button.icon { padding: 2px 7px; line-height: 1.2; }
+    select, input[type=text] { font: inherit; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; padding: 4px 6px; background: #fff; color: var(--text-main); }
+    input[type=text]:focus, select:focus { outline: 2px solid #bfd3f5; border-color: var(--veeva-blue); }
+    .callout { background: #f0f6ff; border: 1px solid #d6e4fb; border-radius: 6px; padding: 10px 12px; font-size: 12px; line-height: 1.55; color: #1f3a66; }
+    .warn { background: #fffbe6; border: 1px solid #f0e68c; border-radius: 6px; padding: 8px 12px; font-size: 12px; line-height: 1.5; color: #6b5200; margin-bottom: 10px; }
+
+    /* chips */
+    .chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px 1px 5px; border-radius: 4px; border-left: 3px solid var(--c); background: var(--t); font-size: 12px; font-weight: 500; white-space: nowrap; line-height: 18px; }
+    .chip i { font-style: normal; font-size: 10px; font-weight: 700; color: var(--c); }
+    .chip small { font-size: 10px; color: var(--text-muted); font-weight: 500; }
+    .chip.muted-chip { opacity: .55; border-left-style: dashed; }
+    .rec-badge { display: inline-block; min-width: 26px; text-align: center; padding: 0 5px; border-radius: 4px; font-size: 11px; font-weight: 700; color: #fff; background: var(--c); line-height: 18px; }
+    .pill { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+    .pill.ok { background: #dcfce7; color: #166534; }
+    .pill.bad { background: #fee2e2; color: #991b1b; }
+    .pill.info { background: #e0e7ff; color: #3730a3; }
+
+    /* definition */
+    .def-grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 20px; align-items: start; }
+    .node-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .node-table th { text-align: left; font-weight: 600; color: #4b5563; padding: 4px 6px; border-bottom: 1px solid var(--border); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+    .node-table td { padding: 5px 6px; border-bottom: 1px solid #f1f3f6; vertical-align: middle; }
+    .node-table input.n-name { width: 150px; }
+    .node-table input.n-states { width: 100%; min-width: 200px; }
+    .tree-box { border: 1px solid var(--border); border-radius: 6px; background: #fbfcfe; overflow: auto; padding: 8px; }
+    .tree-box svg { display: block; margin: 0 auto; }
+
+    /* timeline */
+    .tl { overflow-x: auto; border: 1px solid var(--border); border-radius: 6px; position: relative; }
+    .tl-row { display: flex; align-items: stretch; border-bottom: 1px solid #eef0f3; min-width: max-content; padding-right: 40px; }
+    .tl-row:last-child { border-bottom: none; }
+    .tl-label { width: 230px; flex: none; position: sticky; left: 0; background: #fff; z-index: 3; display: flex; align-items: center; gap: 6px; padding: 0 8px; border-right: 1px solid var(--border); font-size: 12px; }
+    .tl-label .obj { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tl-label .sub { color: var(--text-muted); font-size: 11px; white-space: nowrap; }
+    .tl-label .grow { flex: 1; }
+    .tl-label .del { border: none; background: none; color: #9ca3af; font-size: 15px; padding: 0 4px; }
+    .tl-label .del:hover { color: #b91c1c; background: none; }
+    .tl-track { position: relative; height: 42px; flex: none; background-image: repeating-linear-gradient(to right, transparent 0 calc(var(--pw) - 1px), #eceff3 calc(var(--pw) - 1px) var(--pw)); }
+    .tl-head .tl-track { height: 26px; background: #f8fafc; }
+    .tl-head .tl-label { background: #f8fafc; color: var(--text-muted); font-size: 11px; font-weight: 600; }
+    .tl-t { position: absolute; top: 0; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--text-muted); font-weight: 600; }
+    .seg { position: absolute; top: 7px; height: 28px; border-radius: 4px; border: 1px solid var(--c); background: color-mix(in srgb, var(--c) var(--m), white); display: flex; align-items: center; padding: 0 10px 0 7px; font-size: 12px; font-weight: 600; color: #111; cursor: grab; user-select: none; white-space: nowrap; overflow: hidden; transition: opacity .12s; touch-action: none; }
+    .seg span.lbl { overflow: hidden; text-overflow: ellipsis; }
+    .seg:active { cursor: grabbing; }
+    .seg .rh { position: absolute; right: 0; top: 0; width: 9px; height: 100%; cursor: ew-resize; }
+    .seg .rh::after { content: ''; position: absolute; right: 3px; top: 8px; bottom: 8px; width: 2px; border-left: 1px solid rgba(0,0,0,.25); border-right: 1px solid rgba(0,0,0,.25); opacity: 0; }
+    .seg:hover .rh::after { opacity: 1; }
+    .seg.sel { outline: 2.5px solid var(--veeva-blue); outline-offset: 1px; z-index: 2; }
+    .seg.ov { box-shadow: 0 0 0 2px var(--orange); background-image: repeating-linear-gradient(45deg, rgba(224,123,18,.22) 0 5px, transparent 5px 10px); z-index: 1; }
+    .seg.dim { opacity: .3; }
+    .seg .ord { flex: none; margin-right: 5px; min-width: 17px; height: 17px; border-radius: 9px; background: #111827; color: #fff; font-size: 10px; display: inline-flex; align-items: center; justify-content: center; padding: 0 4px; }
+    .tl-row.dimrow .seg { opacity: .22; }
+    .tl-row.dimrow .tl-label { opacity: .45; }
+    .add-seg { position: absolute; top: 12px; height: 18px; width: 22px; padding: 0; font-size: 13px; line-height: 16px; color: #6b7280; border-style: dashed; }
+    .tl-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 11px; color: var(--text-muted); margin-top: 8px; }
+    .tl-legend b { color: #374151; font-weight: 600; }
+
+    /* variant */
+    .steps { display: flex; flex-direction: column; gap: 14px; }
+    .step { display: flex; gap: 12px; }
+    .step-n { flex: none; width: 24px; height: 24px; border-radius: 12px; background: var(--veeva-blue); color: #fff; font-weight: 700; font-size: 12px; display: flex; align-items: center; justify-content: center; margin-top: 1px; }
+    .step-body { flex: 1; min-width: 0; }
+    .step-title { font-weight: 700; margin-bottom: 3px; }
+    .step-desc { color: #4b5563; font-size: 12px; margin-bottom: 8px; line-height: 1.5; }
+    .ord-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .ord-table th { text-align: left; font-weight: 600; color: #4b5563; padding: 5px 8px; background: #f3f4f6; border: 1px solid var(--border); font-size: 11px; }
+    .ord-table td { padding: 6px 8px; border: 1px solid var(--border); vertical-align: middle; }
+    .ord-table tr.hov td { background: #f0f6ff; }
+    .ord-table tbody tr { cursor: default; }
+    .seq { display: flex; flex-wrap: wrap; align-items: center; gap: 3px; row-gap: 5px; }
+    .seq .arr { color: #9ca3af; font-size: 12px; padding: 0 1px; }
+    .seq .arr.x { color: var(--orange); font-weight: 700; }
+    .seq .arr.tie { color: #7c3aed; font-weight: 700; }
+    .vbox { border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; background: #fbfcfe; }
+    .vrow { display: flex; gap: 10px; align-items: flex-start; padding: 4px 6px; border-radius: 4px; }
+    .vrow:hover { background: #eef4fd; }
+    .vnum { flex: none; font-weight: 700; color: var(--veeva-blue); width: 26px; padding-top: 1px; }
+    .vmeta { flex: none; font-size: 11px; color: var(--text-muted); padding-top: 2px; width: 120px; }
+
+    /* overlap table */
+    .ov-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .ov-table th { text-align: left; font-weight: 600; color: #374151; padding: 6px 8px; background: #f3f4f6; border: 1px solid var(--border); vertical-align: bottom; }
+    .ov-table th small { display: block; font-weight: 400; color: var(--text-muted); font-size: 11px; margin-top: 2px; }
+    .ov-table td { padding: 6px 8px; border: 1px solid var(--border); vertical-align: top; }
+    .ov-table tr.lane-h td { background: #f8fafc; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: #4b5563; padding: 4px 8px; }
+    .ov-table tr.st { cursor: pointer; }
+    .ov-table tr.st:hover td { background: #f5f8fe; }
+    .ov-table tr.st.sel td { background: #e3edfc; }
+    .ov-table .cell-list { display: flex; flex-wrap: wrap; gap: 4px; }
+    .clt-item { display: inline-flex; align-items: center; gap: 4px; }
+    .clt-item .meta { font-size: 10px; color: #9a5a0c; background: var(--orange-bg); border-radius: 8px; padding: 0 6px; line-height: 16px; white-space: nowrap; }
+    .clt-item.nodraw { opacity: .55; }
+    .clt-item.nodraw .meta { color: #6b7280; background: #f3f4f6; }
+    .none { color: #c0c4cc; }
+
+    /* graph */
+    .graph-bar { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; margin-bottom: 10px; font-size: 12px; }
+    .seg-ctl { display: inline-flex; border: 1px solid #cbd5e1; border-radius: 4px; overflow: hidden; }
+    .seg-ctl button { border: none; border-radius: 0; border-right: 1px solid #cbd5e1; padding: 4px 9px; }
+    .seg-ctl button:last-child { border-right: none; }
+    .seg-ctl button.on { background: var(--veeva-blue); color: #fff; }
+    .graph-box { border: 1px solid var(--border); border-radius: 6px; overflow: auto; background: #fff; position: relative; }
+    .graph-box svg { display: block; }
+    .graph-box svg .nd { cursor: pointer; }
+    .graph-box svg .mv { cursor: pointer; }
+    .graph-box svg .mv:hover rect { fill: rgba(255,255,255,.35); }
+    .graph-legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 11px; color: var(--text-muted); margin-top: 8px; }
+    .lg { display: inline-flex; align-items: center; gap: 5px; }
+    .lg .sw { width: 16px; height: 11px; border-radius: 3px; border: 1px solid #b0b0b0; background: #fff; }
+    .sel-chip { display: inline-flex; align-items: center; gap: 6px; }
+    label.chk { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+
+    /* popover + hovercard */
+    #popover { position: absolute; z-index: 50; background: #fff; border: 1px solid #d1d5db; border-radius: 6px; box-shadow: 0 10px 25px rgba(0,0,0,.14); padding: 10px 12px; width: 250px; font-size: 12px; display: flex; flex-direction: column; gap: 8px; }
+    #popover .pop-h { display: flex; align-items: center; gap: 6px; }
+    #popover .pop-h .x { margin-left: auto; border: none; font-size: 15px; padding: 0 4px; color: #6b7280; }
+    #popover label { display: flex; align-items: center; gap: 8px; }
+    #popover label select { flex: 1; }
+    #popover .pop-row { display: flex; align-items: center; gap: 6px; }
+    #popover .pop-row b { min-width: 16px; text-align: center; }
+    #hovercard { position: absolute; z-index: 60; pointer-events: none; background: #fff; border: 1px solid #d1d5db; border-radius: 6px; box-shadow: 0 12px 28px rgba(0,0,0,.16); padding: 12px 14px; width: 300px; font-size: 12px; line-height: 1.5; }
+    #hovercard .hc-t { font-weight: 700; margin-bottom: 6px; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+    #hovercard .hc-k { color: var(--text-muted); }
+    #hovercard p { margin: 8px 0 0; color: #4b5563; font-size: 11px; }
+    [hidden] { display: none !important; }
+
+    @media (max-width: 1200px) {
+        .def-grid { grid-template-columns: minmax(0, 1fr); }
+    }
+    @media (max-width: 640px) {
+        .wrap { padding: 16px; }
+        .tl-label { width: 150px; }
+        .tl-label .sub { display: none; }
+    }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+    <header style="margin-bottom:18px">
+        <div class="eyebrow">Interactive Explainer · Process Maps</div>
+        <h1>Variants, Step Overlap &amp; Cross Lane Transitions</h1>
+        <p class="prose">
+            A <b>Process Map</b> links up to 5 objects into a tree with one <b>primary</b> (root) object. For each process instance (one primary record),
+            Process Monitor builds the <b>variant</b>: the set of unique <b>leaf orderings</b>. It also precalculates <b>Step Overlap</b> and <b>Cross Lane Transitions</b> for the swimlane Process Graph.
+            Edit the map, drag the record timelines, and every calculation below updates.
+        </p>
+    </header>
+
+    <!-- 1. Definition -->
+    <section class="card" id="sec-def">
+        <div class="card-head">
+            <div><div class="eyebrow">1 · Process Map</div><h2>Definition</h2></div>
+            <div class="tools">
+                <span class="muted">Example</span>
+                <select id="preset"></select>
+                <button id="btn-reset">Reset example</button>
+            </div>
+        </div>
+        <p class="hint">Each object is a node with its own lifecycle. Every node except the primary has one parent, which makes the map a tree. <b>Leaf</b> nodes (no children) drive the variant calculation. Maximum 5 nodes.</p>
+        <div class="def-grid">
+            <div>
+                <table class="node-table">
+                    <thead><tr><th style="width:36px"></th><th>Object</th><th>Parent</th><th>Lifecycle states (comma separated)</th><th style="width:30px"></th></tr></thead>
+                    <tbody id="def-nodes"></tbody>
+                </table>
+                <div style="margin-top:10px"><button id="btn-add-node">+ Add object</button> <span class="muted" id="node-count" style="margin-left:6px"></span></div>
+            </div>
+            <div class="tree-box" id="def-tree"></div>
+        </div>
+    </section>
+
+    <!-- 2. Timeline -->
+    <section class="card" id="sec-tl">
+        <div class="card-head">
+            <div><div class="eyebrow">2 · Process instance</div><h2>Record timeline</h2></div>
+            <div class="tools">
+                <span class="muted">Add record</span>
+                <select id="add-node"></select>
+                <span class="muted">under</span>
+                <select id="add-parent"></select>
+                <button class="primary" id="btn-add-rec">Add</button>
+                <span class="sep"></span>
+                <span class="muted">Periods</span>
+                <button class="icon" id="per-minus">−</button>
+                <b id="per-val"></b>
+                <button class="icon" id="per-plus">+</button>
+            </div>
+        </div>
+        <p class="hint">One process instance: a single primary record plus its related records. Each bar segment is a state, snapped to time periods. Wider segments mean longer time in the state. The instance has one primary record because variants are calculated per primary record.</p>
+        <div class="tl" id="timeline" style="--pw:64px"></div>
+        <div class="tl-legend">
+            <span><b>Drag a bar</b> to move the whole record in time</span>
+            <span><b>Drag a segment's right edge</b> to change its duration</span>
+            <span><b>Click a segment</b> to select the step and edit its state</span>
+            <span><b>+</b> appends the next state</span>
+            <span>The last state always runs to the final period</span>
+        </div>
+    </section>
+
+    <!-- 3. Variant -->
+    <section class="card" id="sec-var">
+        <div class="card-head">
+            <div><div class="eyebrow">3 · Variant calculation</div><h2>Unique leaf orderings</h2></div>
+            <div id="var-summary" class="tools"></div>
+        </div>
+        <div class="steps" id="variant"></div>
+    </section>
+
+        <!-- 4. Overlap table -->
+        <section class="card" id="sec-table">
+            <div class="card-head">
+                <div><div class="eyebrow">4 · Precalculated interactions</div><h2>Step overlap &amp; cross lane transitions</h2></div>
+            </div>
+            <p class="hint"><b>Overlap:</b> steps of <i>directly related</i> records (parent ↔ child) whose time interval intersects this step's interval.
+                <b>Cross lane transition:</b> in a leaf ordering, the next state entry after this step belongs to a different lane. Tags show record pairs · average start delay in periods. Click a row to select the step.</p>
+            <div id="ov-table"></div>
+        </section>
+
+        <!-- 5. Graph -->
+        <section class="card" id="sec-graph">
+            <div class="card-head">
+                <div><div class="eyebrow">5 · Process Graph</div><h2>Swimlane graph of the variant</h2></div>
+            </div>
+            <div class="graph-bar">
+                <label class="chk"><input type="checkbox" id="chk-all"> Show all cross lane transitions</label>
+                <span id="lane-mode"></span>
+                <span id="sel-chip" class="sel-chip"></span>
+            </div>
+            <div id="graph-warn"></div>
+            <div class="graph-box" id="graph"></div>
+            <div class="graph-legend">
+                <span class="lg"><span class="sw" style="border:2.5px solid var(--veeva-blue)"></span>Selected step</span>
+                <span class="lg"><span class="sw" style="border:2px solid var(--orange);background:var(--orange-bg)"></span>Step overlap</span>
+                <span class="lg"><svg width="26" height="10"><line x1="1" y1="5" x2="20" y2="5" stroke="#e07b12" stroke-width="2"/><path d="M19,1 L25,5 L19,9 z" fill="#e07b12"/></svg>Cross lane transition (pairs · avg Δ)</span>
+                <span class="lg"><svg width="26" height="10"><line x1="1" y1="5" x2="20" y2="5" stroke="#999" stroke-width="1.5"/><path d="M19,1 L25,5 L19,9 z" fill="#999"/></svg>In-lane transition</span>
+                <span class="lg"><span class="sw" style="border-style:dashed;background:#fafafa"></span>Step not visited</span>
+            </div>
+        </section>
+</div>
+
+<div id="popover" hidden></div>
+<div id="hovercard" hidden></div>
+
+<script>
+// ---------------------------------------------------------------- constants
+const PALETTE = [
+    { c: '#1453b8', t: '#e9f0fb' },
+    { c: '#c2680c', t: '#fdf1e3' },
+    { c: '#15803d', t: '#e7f5ec' },
+    { c: '#7c3aed', t: '#f1ebfe' },
+    { c: '#0e7490', t: '#e2f3f6' },
+];
+const PW = 64, MAX_NODES = 5, MIN_PERIODS = 4, MAX_PERIODS = 20;
+const SEP = '\u0001';
+
+let S = null;   // editable state
+let G = null;   // derived lookups
+let A = null;   // full analysis
+let uidN = 1;
+const uid = p => p + '_' + (uidN++);
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const nk = (node, state) => node + SEP + state;
+const splitNk = k => k.split(SEP);
+const fmt = n => String(Math.round(n * 10) / 10);
+const T = i => 'T' + (i + 1);
+const periodWord = n => n === 1 ? 'period' : 'periods';
+
+// ---------------------------------------------------------------- presets
+function build(nodes, recs, periods) {
+    const ns = nodes.map(([id, name, parent, states], i) => ({ id, name, parent, states: states.split(',').map(s => s.trim()), ci: i }));
+    const counters = {};
+    const rs = recs.map(([id, node, parent, start, segs]) => ({
+        id, node, parent, start,
+        n: (counters[node] = (counters[node] || 0) + 1),
+        segs: segs.split(',').map(x => { const [s, d] = x.split(':'); return { s: s.trim(), d: +d }; }),
+    }));
+    return { nodes: ns, records: rs, periods, selected: null, hoverLeaf: null, showAll: false, manualOrder: null };
+}
+
+const PRESETS = [
+    {
+        label: 'Spreadsheet example: Parent + Child',
+        make: () => build(
+            [['p', 'Parent', null, 'A, B, C'], ['c', 'Child', 'p', 'X, Y, Z']],
+            [['p1', 'p', null, 0, 'A:3,B:1,C:1'], ['c1', 'c', 'p1', 1, 'X:1,Y:3']], 5),
+    },
+    {
+        label: 'Deviation → Investigation + CAPA Actions (1:many)',
+        make: () => build(
+            [['dev', 'Deviation', null, 'New, Triage, Under Investigation, QA Approval, Closed'],
+             ['inv', 'Investigation', 'dev', 'Open, Root Cause Analysis, Complete'],
+             ['capa', 'CAPA Action', 'dev', 'Planned, In Progress, Effectiveness Check, Closed']],
+            [['d1', 'dev', null, 0, 'New:1,Triage:1,Under Investigation:5,QA Approval:2,Closed:1'],
+             ['i1', 'inv', 'd1', 2, 'Open:1,Root Cause Analysis:2,Complete:1'],
+             ['a1', 'capa', 'd1', 4, 'Planned:1,In Progress:2,Effectiveness Check:1,Closed:1'],
+             ['a2', 'capa', 'd1', 5, 'Planned:1,In Progress:3,Closed:1']], 10),
+    },
+    {
+        label: 'Inbox Item → Case → Transmission (sequential, with rework)',
+        make: () => build(
+            [['ii', 'Inbox Item', null, 'New, Triage, Promoted'],
+             ['case', 'Case', 'ii', 'Data Entry, Medical Review, Approved'],
+             ['tx', 'Transmission', 'case', 'Pending, Sent, Acknowledged']],
+            [['ii1', 'ii', null, 0, 'New:1,Triage:1,Promoted:8'],
+             ['c1', 'case', 'ii1', 2, 'Data Entry:1,Medical Review:1,Data Entry:1,Medical Review:1,Approved:4'],
+             ['t1', 'tx', 'c1', 6, 'Pending:1,Sent:1,Acknowledged:2'],
+             ['t2', 'tx', 'c1', 6, 'Pending:2,Sent:1,Acknowledged:1']], 10),
+    },
+    {
+        label: 'Change Control hub: 5 objects (hidden relation)',
+        make: () => build(
+            [['cc', 'Change Control', null, 'Draft, Planning, Implementation, Closed'],
+             ['cp', 'Change Plan', 'cc', 'Draft, Approved, Complete'],
+             ['ca', 'Change Action', 'cp', 'Open, In Progress, Done'],
+             ['dc', 'Document Change', 'cc', 'Draft, In Review, Effective'],
+             ['tr', 'Training', 'cc', 'Assigned, Completed']],
+            [['cc1', 'cc', null, 0, 'Draft:1,Planning:2,Implementation:5,Closed:1'],
+             ['cp1', 'cp', 'cc1', 1, 'Draft:1,Approved:2,Complete:4'],
+             ['ca1', 'ca', 'cp1', 3, 'Open:1,In Progress:3,Done:1'],
+             ['ca2', 'ca', 'cp1', 4, 'Open:2,In Progress:1,Done:1'],
+             ['dc1', 'dc', 'cc1', 3, 'Draft:1,In Review:2,Effective:2'],
+             ['tr1', 'tr', 'cc1', 6, 'Assigned:1,Completed:1']], 10),
+    },
+];
+let presetIdx = 0;
+
+// ---------------------------------------------------------------- derived lookups
+function abbrs(nodes) {
+    const used = new Set(), m = {};
+    nodes.forEach(n => {
+        const words = n.name.trim().split(/\s+/).filter(Boolean);
+        const flat = words.join('').replace(/[^A-Za-z0-9]/g, '') || 'X';
+        let a = words.length > 1 ? words.map(w => w[0]).join('').slice(0, 3).toUpperCase() : flat[0].toUpperCase();
+        let len = a.length;
+        while (used.has(a) && len < flat.length) a = flat.slice(0, ++len).toUpperCase();
+        used.add(a);
+        m[n.id] = a;
+    });
+    return m;
+}
+
+function derive() {
+    const nodeById = new Map(S.nodes.map(n => [n.id, n]));
+    const kids = {};
+    S.nodes.forEach(n => kids[n.id] = S.nodes.filter(m => m.parent === n.id));
+    const root = S.nodes.find(n => !n.parent);
+    const dfs = [], depth = {};
+    (function walk(n, d) { dfs.push(n); depth[n.id] = d; kids[n.id].forEach(k => walk(k, d + 1)); })(root, 0);
+    const dfsIdx = {};
+    dfs.forEach((n, i) => dfsIdx[n.id] = i);
+    const ab = abbrs(dfs);
+    const recById = new Map(S.records.map(r => [r.id, r]));
+    const recKids = r => S.records.filter(q => q.parent === r.id).sort((a, b) => dfsIdx[a.node] - dfsIdx[b.node] || a.n - b.n);
+    const recOrder = [], recDepth = {};
+    S.records.filter(r => !r.parent).forEach(r => (function w(r, d) { recOrder.push(r); recDepth[r.id] = d; recKids(r).forEach(k => w(k, d + 1)); })(r, 0));
+    const recIdx = {};
+    recOrder.forEach((r, i) => recIdx[r.id] = i);
+    const label = r => ab[r.node] + r.n;
+    const color = id => PALETTE[nodeById.get(id).ci % PALETTE.length];
+    const related = (a, b) => a !== b && (nodeById.get(a).parent === b || nodeById.get(b).parent === a);
+    const leafNodes = new Set(S.nodes.filter(n => !kids[n.id].length).map(n => n.id));
+    G = { nodeById, kids, root, dfs, depth, dfsIdx, ab, recById, recOrder, recDepth, recIdx, label, color, related, leafNodes };
+}
+
+function events(r) {
+    let t = r.start;
+    return r.segs.map((g, i) => {
+        const e = { key: r.id + '#' + i, rec: r, node: r.node, state: g.s, nk: nk(r.node, g.s), start: t, end: t + g.d, i };
+        t += g.d;
+        return e;
+    });
+}
+const recEnd = r => r.start + r.segs.reduce((s, g) => s + g.d, 0);
+// The last state always runs to the final period, so a record's minimum footprint is its earlier states + 1
+const minSpan = r => r.segs.slice(0, -1).reduce((s, g) => s + g.d, 0) + 1;
+const isLast = (r, i) => i === r.segs.length - 1;
+
+// ---------------------------------------------------------------- analysis
+function analyze() {
+    const E = new Map(G.recOrder.map(r => [r.id, events(r)]));
+    // Ties on entry time are broken toward the parent lane (depth), then map order, then record order.
+    const cmp = (a, b) => a.start - b.start || G.depth[a.node] - G.depth[b.node] || G.dfsIdx[a.node] - G.dfsIdx[b.node] || G.recIdx[a.rec.id] - G.recIdx[b.rec.id] || a.i - b.i;
+    const leaves = G.recOrder.filter(r => G.leafNodes.has(r.node));
+    const allPaths = leaves.map(leaf => {
+        const chain = [];
+        let r = leaf;
+        while (r) { chain.unshift(r); r = G.recById.get(r.parent); }
+        const ord = chain.flatMap(r => E.get(r.id)).sort(cmp);
+        return { leaf, chain, ord, key: ord.map(e => e.nk).join('\u0002') };
+    });
+    const variants = [], vByKey = new Map();
+    allPaths.forEach(p => {
+        let v = vByKey.get(p.key);
+        if (!v) { v = { idx: variants.length, key: p.key, ord: p.ord, leaves: [], repeats: [] }; variants.push(v); vByKey.set(p.key, v); }
+        v.leaves.push(p.leaf.id);
+        p.v = v;
+    });
+    variants.forEach(v => {
+        const seen = new Set(), rep = new Set();
+        v.ord.forEach(e => { if (seen.has(e.nk)) rep.add(e.nk); seen.add(e.nk); });
+        v.repeats = [...rep];
+    });
+    const paths = allPaths;
+    const covered = new Set(allPaths.flatMap(p => p.chain.map(r => r.id)));
+    const scope = new Set(G.recOrder.map(r => r.id));
+
+    // Cross lane transitions: consecutive entries of a leaf ordering in different lanes.
+    // A state entry shared by several leaf paths (e.g. a parent state) is only counted once per pair of entries.
+    const clt = new Map(), seenPair = new Set();
+    paths.forEach(p => {
+        for (let i = 0; i < p.ord.length - 1; i++) {
+            const a = p.ord[i], b = p.ord[i + 1];
+            if (a.node === b.node) continue;
+            const pk = a.key + '>' + b.key;
+            if (seenPair.has(pk)) continue;
+            seenPair.add(pk);
+            const k = a.nk + '\u0003' + b.nk;
+            let c = clt.get(k);
+            if (!c) { c = { key: k, from: a.nk, to: b.nk, fromNode: a.node, toNode: b.node, pairs: new Set(), inst: [] }; clt.set(k, c); }
+            c.pairs.add(G.label(a.rec) + ' → ' + G.label(b.rec));
+            c.inst.push({ a, b, delay: b.start - a.start });
+        }
+    });
+    clt.forEach(c => c.avg = c.inst.reduce((s, x) => s + x.delay, 0) / c.inst.length);
+
+    // In-lane transitions per record
+    const inl = new Map();
+    scope.forEach(id => {
+        const ev = E.get(id);
+        for (let i = 0; i < ev.length - 1; i++) {
+            const k = ev[i].nk + '\u0003' + ev[i + 1].nk;
+            let c = inl.get(k);
+            if (!c) { c = { from: ev[i].nk, to: ev[i + 1].nk, node: ev[i].node, recs: new Set() }; inl.set(k, c); }
+            c.recs.add(id);
+        }
+    });
+
+    // Step overlap between directly related record pairs (parent ↔ child)
+    const ov = new Map();
+    const addOv = (x, y, pair) => {
+        if (!ov.has(x.nk)) ov.set(x.nk, new Map());
+        const m = ov.get(x.nk);
+        if (!m.has(y.nk)) m.set(y.nk, new Set());
+        m.get(y.nk).add(pair);
+    };
+    G.recOrder.forEach(q => {
+        if (!q.parent || !scope.has(q.id) || !scope.has(q.parent)) return;
+        const r = G.recById.get(q.parent);
+        const pair = G.label(r) + ' ↔ ' + G.label(q);
+        E.get(r.id).forEach(e => E.get(q.id).forEach(f => {
+            if (e.start < f.end && f.start < e.end) { addOv(e, f, pair); addOv(f, e, pair); }
+        }));
+    });
+
+    const visited = new Map();
+    scope.forEach(id => E.get(id).forEach(e => {
+        const v = visited.get(e.nk);
+        if (!v) visited.set(e.nk, { nk: e.nk, node: e.node, state: e.state, first: e.start, recs: new Set([id]) });
+        else { v.first = Math.min(v.first, e.start); v.recs.add(id); }
+    }));
+
+    return { E, allPaths, paths, variants, covered, scope, clt, inl, ov, visited };
+}
+
+// ---------------------------------------------------------------- lane ordering
+function permutations(arr) {
+    if (arr.length <= 1) return [arr.slice()];
+    return arr.flatMap((x, i) => permutations([...arr.slice(0, i), ...arr.slice(i + 1)]).map(p => [x, ...p]));
+}
+function autoOrder() {
+    // Maximise directly-related neighbours; tie-break toward map (DFS) order.
+    let best = null, bestScore = -1, bestDist = Infinity;
+    permutations(G.dfs.map(n => n.id)).forEach(p => {
+        let score = 0;
+        for (let i = 0; i < p.length - 1; i++) if (G.related(p[i], p[i + 1])) score++;
+        const dist = p.reduce((s, id, i) => s + Math.abs(G.dfsIdx[id] - i), 0);
+        if (score > bestScore || (score === bestScore && dist < bestDist)) { best = p; bestScore = score; bestDist = dist; }
+    });
+    return best;
+}
+function laneOrder() {
+    const m = S.manualOrder;
+    if (m && m.length === S.nodes.length && S.nodes.every(n => m.includes(n.id))) return m;
+    S.manualOrder = null;
+    return autoOrder();
+}
+
+// ---------------------------------------------------------------- mutations
+function normalize(r) {
+    const out = [];
+    r.segs.forEach(g => {
+        if (g.d < 1) g.d = 1;
+        const last = out[out.length - 1];
+        if (last && last.s === g.s) last.d += g.d; else out.push({ s: g.s, d: g.d });
+    });
+    r.segs = out;
+    if (r.start < 0) r.start = 0;
+}
+function ensureFit(r) {
+    let end = r.start + minSpan(r);
+    if (end <= S.periods) return;
+    if (end <= MAX_PERIODS) { S.periods = end; return; }
+    // Beyond the maximum: pull the record back, then trim earlier states.
+    r.start = Math.max(0, r.start - (end - MAX_PERIODS));
+    end = r.start + minSpan(r);
+    while (end > MAX_PERIODS && r.segs.length > 1) {
+        const g = r.segs[r.segs.length - 2];
+        const cut = Math.min(end - MAX_PERIODS, g.d - 1);
+        if (cut > 0) { g.d -= cut; end -= cut; } else { r.segs.splice(r.segs.length - 2, 1); end -= g.d; }
+    }
+    S.periods = Math.max(S.periods, Math.min(MAX_PERIODS, end));
+}
+function fillToEnd() {
+    S.records.forEach(r => {
+        ensureFit(r);
+        r.segs[r.segs.length - 1].d = S.periods - r.start - (minSpan(r) - 1);
+    });
+}
+// Adds a state after index i. Appending after the last state takes a period from it (or grows the timeline).
+function insertAfter(r, i) {
+    const n = G.nodeById.get(r.node);
+    if (isLast(r, i)) {
+        const last = r.segs[i];
+        if (last.d > 1) last.d--;
+        else if (S.periods < MAX_PERIODS) S.periods++;
+        else return;
+    }
+    r.segs.splice(i + 1, 0, { s: nextState(n, r.segs[i].s), d: 1 });
+    normalize(r);
+    ensureFit(r);
+}
+function nextState(node, s) {
+    const st = node.states;
+    return st[(st.indexOf(s) + 1) % st.length];
+}
+function newRecord(nodeId, parentId) {
+    const n = G.nodeById.get(nodeId);
+    const parent = parentId ? G.recById.get(parentId) : null;
+    const nNum = Math.max(0, ...S.records.filter(r => r.node === nodeId).map(r => r.n)) + 1;
+    const segs = [{ s: n.states[0], d: 1 }];
+    if (n.states[1]) segs.push({ s: n.states[1], d: 1 });
+    const start = parent ? Math.max(0, Math.min(parent.start + 1, S.periods - segs.length)) : 0;
+    const r = { id: uid('r'), node: nodeId, parent: parentId || null, start, n: nNum, segs };
+    S.records.push(r);
+    ensureFit(r);
+    return r;
+}
+function fixup() {
+    const ids = new Set(S.nodes.map(n => n.id));
+    S.records = S.records.filter(r => ids.has(r.node));
+    derive();
+    const byDepth = [...S.records].sort((a, b) => G.depth[a.node] - G.depth[b.node]);
+    const keep = new Set();
+    let rootKept = false;
+    byDepth.forEach(r => {
+        const n = G.nodeById.get(r.node);
+        if (!n.parent) {
+            if (!rootKept) { r.parent = null; keep.add(r.id); rootKept = true; }
+            return;
+        }
+        const p = S.records.find(q => q.id === r.parent);
+        if (p && p.node === n.parent && keep.has(p.id)) { keep.add(r.id); return; }
+        const alt = byDepth.find(q => q.node === n.parent && keep.has(q.id));
+        if (alt) { r.parent = alt.id; keep.add(r.id); }
+    });
+    S.records = S.records.filter(r => keep.has(r.id));
+    derive();
+    if (!S.records.some(r => !r.parent)) newRecord(G.root.id, null);
+    S.records.forEach(r => {
+        const n = G.nodeById.get(r.node);
+        r.segs.forEach(g => { if (!n.states.includes(g.s)) g.s = n.states[0]; });
+        normalize(r);
+        ensureFit(r);
+    });
+    derive();
+}
+function loadPreset(i) {
+    presetIdx = i;
+    S = PRESETS[i].make();
+    closePop();
+    renderAll();
+}
+
+// ---------------------------------------------------------------- small render helpers
+function chip(key, opts = {}) {
+    const [node, state] = splitNk(key);
+    const n = G.nodeById.get(node);
+    if (!n) return '';
+    const col = G.color(node);
+    return `<span class="chip ${opts.cls || ''}" style="--c:${col.c};--t:${col.t}" title="${esc(n.name)} · ${esc(state)}${opts.title ? '\n' + esc(opts.title) : ''}"><i>${esc(G.ab[node])}</i>${esc(state)}${opts.extra || ''}</span>`;
+}
+function recBadge(r) {
+    return `<span class="rec-badge" style="--c:${G.color(r.node).c}">${esc(G.label(r))}</span>`;
+}
+function seqHtml(ord, withTime) {
+    return `<div class="seq">` + ord.map((e, i) => {
+        let arrow = '';
+        if (i > 0) {
+            const p = ord[i - 1];
+            if (p.start === e.start) arrow = `<span class="arr tie" title="Tie: both entered at ${T(e.start)}. The parent lane goes first.">=</span>`;
+            else if (p.node !== e.node) arrow = `<span class="arr x" title="Cross lane transition">→</span>`;
+            else arrow = `<span class="arr">→</span>`;
+            if (p.start === e.start && p.node !== e.node) arrow = `<span class="arr tie x" title="Tie at ${T(e.start)}, broken toward the parent lane. Still a cross lane transition.">=</span>`;
+        }
+        return arrow + chip(e.nk, { extra: withTime ? `<small>${T(e.start)}</small>` : '', title: `${G.label(e.rec)} entered at ${T(e.start)}` });
+    }).join('') + `</div>`;
+}
+
+// ---------------------------------------------------------------- render: definition
+function renderDefinition() {
+    $('preset').innerHTML = PRESETS.map((p, i) => `<option value="${i}" ${i === presetIdx ? 'selected' : ''}>${esc(p.label)}</option>`).join('');
+    const rows = G.dfs.map(n => {
+        const col = G.color(n.id);
+        const isRoot = !n.parent;
+        // Parent options exclude the node itself and its descendants (keeps the map a tree)
+        const desc = new Set();
+        (function w(id) { desc.add(id); G.kids[id].forEach(k => w(k.id)); })(n.id);
+        const opts = G.dfs.filter(m => !desc.has(m.id)).map(m => `<option value="${m.id}" ${m.id === n.parent ? 'selected' : ''}>${esc(m.name)}</option>`).join('');
+        const tag = isRoot ? '<span class="pill info">Primary</span>' : '';
+        const leaf = G.leafNodes.has(n.id) ? ' <span class="pill" style="background:#f3f4f6;color:#4b5563">Leaf</span>' : '';
+        return `<tr data-id="${n.id}">
+            <td><span class="rec-badge" style="--c:${col.c}">${esc(G.ab[n.id])}</span></td>
+            <td><input type="text" class="n-name" value="${esc(n.name)}"></td>
+            <td>${isRoot ? tag : `<select class="n-parent">${opts}</select>`}${leaf}</td>
+            <td><input type="text" class="n-states" value="${esc(n.states.join(', '))}"></td>
+            <td>${isRoot ? '' : `<button class="icon n-del" title="Remove object (and its children)">×</button>`}</td>
+        </tr>`;
+    }).join('');
+    $('def-nodes').innerHTML = rows;
+    $('btn-add-node').disabled = S.nodes.length >= MAX_NODES;
+    $('node-count').textContent = `${S.nodes.length} of ${MAX_NODES} objects`;
+    renderTree();
+}
+
+function renderTree() {
+    const pos = {};
+    let leafX = 0;
+    (function place(n) {
+        const ks = G.kids[n.id];
+        if (!ks.length) pos[n.id] = { x: leafX++ };
+        else { ks.forEach(place); pos[n.id] = { x: ks.reduce((s, k) => s + pos[k.id].x, 0) / ks.length }; }
+        pos[n.id].y = G.depth[n.id];
+    })(G.root);
+    const bw = 124, bh = 34, sx = 142, sy = 70, pad = 14;
+    const maxY = Math.max(...Object.values(pos).map(p => p.y));
+    const W = pad * 2 + (leafX - 1) * sx + bw, H = pad * 2 + maxY * sy + bh + 16;
+    const X = id => pad + pos[id].x * sx, Y = id => pad + 10 + pos[id].y * sy;
+    let s = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="Roboto, sans-serif">
+        <defs><marker id="tarr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#9ca3af"/></marker></defs>`;
+    S.nodes.forEach(n => {
+        if (!n.parent) return;
+        const x1 = X(n.parent) + bw / 2, y1 = Y(n.parent) + bh, x2 = X(n.id) + bw / 2, y2 = Y(n.id);
+        s += `<path d="M${x1},${y1} C${x1},${y1 + 22} ${x2},${y2 - 22} ${x2},${y2 - 2}" fill="none" stroke="#9ca3af" stroke-width="1.5" marker-end="url(#tarr)"/>`;
+    });
+    G.dfs.forEach(n => {
+        const col = G.color(n.id), x = X(n.id), y = Y(n.id);
+        const root = !n.parent, leaf = G.leafNodes.has(n.id);
+        s += `<rect x="${x}" y="${y}" width="${bw}" height="${bh}" rx="6" fill="${col.t}" stroke="${col.c}" stroke-width="${root ? 2.2 : 1.2}"/>
+            <text x="${x + 10}" y="${y + 21}" font-size="11" font-weight="700" fill="${col.c}">${esc(G.ab[n.id])}</text>
+            <text x="${x + 12 + G.ab[n.id].length * 8}" y="${y + 21}" font-size="12" font-weight="600" fill="#1d1d1d">${esc(trunc(n.name, 13))}</text>`;
+        if (root) s += `<text x="${x + bw / 2}" y="${y - 5}" text-anchor="middle" font-size="10" font-weight="700" fill="${col.c}" letter-spacing=".05em">PRIMARY</text>`;
+        if (leaf && !root) s += `<text x="${x + bw / 2}" y="${y + bh + 13}" text-anchor="middle" font-size="10" font-weight="600" fill="#6b7280" letter-spacing=".05em">LEAF</text>`;
+    });
+    $('def-tree').innerHTML = s + '</svg>';
+}
+function trunc(s, n) { return s.length > n ? s.slice(0, n - 1) + '…' : s; }
+
+// ---------------------------------------------------------------- render: timeline
+function renderTimeline() {
+    const tl = $('timeline');
+    const width = S.periods * PW;
+    const sel = S.selected;
+    // Segments of the selected step and the segments that overlap them in directly related records
+    const selEvs = [];
+    if (sel) A.E.forEach(evs => evs.forEach(e => { if (e.nk === sel) selEvs.push(e); }));
+    const isOv = f => selEvs.some(e => {
+        const rel = f.rec.parent === e.rec.id || e.rec.parent === f.rec.id;
+        return rel && e.start < f.end && f.start < e.end;
+    });
+    const hovPath = S.hoverLeaf ? A.allPaths.find(p => p.leaf.id === S.hoverLeaf) : null;
+    const ordNum = new Map();
+    if (hovPath) hovPath.ord.forEach((e, i) => ordNum.set(e.key, i + 1));
+    const inPath = hovPath ? new Set(hovPath.chain.map(r => r.id)) : null;
+
+    let h = `<div class="tl-row tl-head"><div class="tl-label">Record</div><div class="tl-track" style="width:${width}px">`;
+    for (let i = 0; i < S.periods; i++) h += `<div class="tl-t" style="left:${i * PW}px;width:${PW}px">${T(i)}</div>`;
+    h += `</div></div>`;
+
+    G.recOrder.forEach(r => {
+        const n = G.nodeById.get(r.node), col = G.color(r.node);
+        const parent = G.recById.get(r.parent);
+        const dimRow = inPath && !inPath.has(r.id);
+        h += `<div class="tl-row ${dimRow ? 'dimrow' : ''}" data-rec="${r.id}">
+            <div class="tl-label" style="padding-left:${8 + G.recDepth[r.id] * 14}px">
+                ${recBadge(r)}<span class="obj">${esc(n.name)}</span>
+                <span class="sub">${parent ? '↳ ' + esc(G.label(parent)) : 'primary'}</span>
+                <span class="grow"></span>
+                ${parent ? `<button class="del" data-del="${r.id}" title="Remove record${G.kids[r.node].length ? ' and its child records' : ''}">×</button>` : ''}
+            </div>
+            <div class="tl-track" style="width:${width}px">`;
+        events(r).forEach(e => {
+            const si = Math.max(0, n.states.indexOf(e.state));
+            const mix = 16 + (si * 17) % 51;
+            let cls = '';
+            if (sel) cls = e.nk === sel ? 'sel' : isOv(e) ? 'ov' : 'dim';
+            const num = ordNum.get(e.key);
+            h += `<div class="seg ${cls}" data-rec="${r.id}" data-i="${e.i}" style="left:${e.start * PW + 1}px;width:${(e.end - e.start) * PW - 2}px;--c:${col.c};--m:${mix}%" title="${esc(G.label(r))} · ${esc(e.state)} · ${T(e.start)}${e.end - e.start > 1 ? '–' + T(e.end - 1) : ''}">
+                ${num ? `<span class="ord">${num}</span>` : ''}<span class="lbl">${esc(e.state)}</span>${isLast(r, e.i) ? '' : '<span class="rh" data-rh="1"></span>'}</div>`;
+        });
+        const end = recEnd(r);
+        if (r.segs[r.segs.length - 1].d > 1 || S.periods < MAX_PERIODS) h += `<button class="add-seg" data-add="${r.id}" style="left:${end * PW + 5}px" title="Append next state">+</button>`;
+        h += `</div></div>`;
+    });
+    tl.innerHTML = h;
+
+    $('per-val').textContent = S.periods;
+    $('per-minus').disabled = S.periods <= Math.max(MIN_PERIODS, ...S.records.map(r => r.start + minSpan(r)));
+    $('per-plus').disabled = S.periods >= MAX_PERIODS;
+    renderAddControls();
+}
+
+function renderAddControls() {
+    const nodeSel = $('add-node'), parSel = $('add-parent');
+    const nonRoot = G.dfs.filter(n => n.parent);
+    const prev = nodeSel.value;
+    nodeSel.innerHTML = nonRoot.map(n => `<option value="${n.id}">${esc(n.name)}</option>`).join('') || '<option value="">(add a child object first)</option>';
+    if (nonRoot.some(n => n.id === prev)) nodeSel.value = prev;
+    const node = G.nodeById.get(nodeSel.value);
+    const prevP = parSel.value;
+    const parents = node ? G.recOrder.filter(r => r.node === node.parent) : [];
+    parSel.innerHTML = parents.map(r => `<option value="${r.id}">${esc(G.label(r))}</option>`).join('') || '<option value="">(none)</option>';
+    if (parents.some(r => r.id === prevP)) parSel.value = prevP;
+    $('btn-add-rec').disabled = !node || !parents.length;
+}
+
+// ---------------------------------------------------------------- render: variant
+function renderVariant() {
+    const leafNodes = G.dfs.filter(n => G.leafNodes.has(n.id));
+    const leafRecs = A.allPaths.map(p => p.leaf);
+    const uncovered = G.recOrder.filter(r => !A.covered.has(r.id));
+    const ftr = A.variants.length > 0 && A.variants.every(v => !v.repeats.length);
+
+    $('var-summary').innerHTML = A.variants.length
+        ? `<span class="pill info">${A.allPaths.length} leaf ordering${A.allPaths.length === 1 ? '' : 's'} → ${A.variants.length} unique</span>
+           ${ftr ? '<span class="pill ok">✓ First time right</span>' : '<span class="pill bad">✗ Not first time right</span>'}`
+        : '';
+
+    let h = `<div class="step"><div class="step-n">1</div><div class="step-body">
+        <div class="step-title">List the leaf records</div>
+        <div class="step-desc">Leaf objects have no outbound edges in the Process Map. Every record of a leaf object starts one ordering.</div>
+        <div class="seq" style="gap:6px"><span class="muted">Leaf objects:</span> ${leafNodes.map(n => `<span class="chip" style="--c:${G.color(n.id).c};--t:${G.color(n.id).t}"><i>${esc(G.ab[n.id])}</i>${esc(n.name)}</span>`).join(' ')}
+        <span class="muted" style="margin-left:10px">Leaf records:</span> ${leafRecs.length ? leafRecs.map(recBadge).join(' ') : '<span class="muted">none</span>'}</div>
+        ${uncovered.length ? `<div class="warn" style="margin:8px 0 0">${uncovered.map(recBadge).join(' ')} ${uncovered.length === 1 ? 'is' : 'are'} not on any path from a leaf record to the primary record, so ${uncovered.length === 1 ? 'its' : 'their'} states are not part of the variant.</div>` : ''}
+        </div></div>`;
+
+    h += `<div class="step"><div class="step-n">2</div><div class="step-body">
+        <div class="step-title">Build one ordering per leaf record</div>
+        <div class="step-desc">Walk from the leaf record back to the primary record, then sort every state entry on that path by entry time.
+            <span style="color:var(--orange);font-weight:700">→</span> marks a cross lane transition. <span style="color:#7c3aed;font-weight:700">=</span> marks a tie, which goes to the parent lane first. Hover a row to number the entries in the timeline.</div>`;
+    if (!A.allPaths.length) {
+        h += `<div class="warn">No leaf records yet, so the variant is empty. Add a record for ${leafNodes.map(n => esc(n.name)).join(' or ')}.</div>`;
+    } else {
+        h += `<table class="ord-table"><thead><tr><th style="width:70px">Leaf</th><th style="width:1%;white-space:nowrap">Path to primary</th><th>Ordering (state entries by time)</th><th style="width:90px">Ordering</th></tr></thead><tbody>`;
+        A.allPaths.forEach(p => {
+            const first = p.v.leaves[0] === p.leaf.id;
+            h += `<tr data-leaf="${p.leaf.id}" class="${S.hoverLeaf === p.leaf.id ? 'hov' : ''}">
+                <td>${recBadge(p.leaf)}</td>
+                <td style="white-space:nowrap">${[...p.chain].reverse().map(recBadge).join(' <span class="muted">→</span> ')}</td>
+                <td>${seqHtml(p.ord, true)}</td>
+                <td>${first ? `<b style="color:var(--veeva-blue)">#${p.v.idx + 1}</b> new` : `<span class="muted">same as #${p.v.idx + 1}</span>`}</td>
+            </tr>`;
+        });
+        h += `</tbody></table>`;
+    }
+    h += `</div></div>`;
+
+    h += `<div class="step"><div class="step-n">3</div><div class="step-body">
+        <div class="step-title">Variant = the set of unique orderings</div>
+        <div class="step-desc">The primary record's variant is the set of unique leaf orderings; duplicates collapse into one. The variant is <b>first time right</b> if no ordering repeats a state.</div>`;
+    if (A.variants.length) {
+        h += `<div class="vbox">` + A.variants.map(v => `
+            <div class="vrow" data-leaf="${v.leaves[0]}">
+                <div class="vnum">#${v.idx + 1}</div>
+                <div style="flex:1;min-width:0">${seqHtml(v.ord, false)}</div>
+                <div class="vmeta">from ${v.leaves.map(id => esc(G.label(G.recById.get(id)))).join(', ')}
+                    ${v.repeats.length ? `<br><span style="color:#991b1b">repeats ${v.repeats.map(k => esc(splitNk(k)[1])).join(', ')}</span>` : ''}</div>
+            </div>`).join('') + `</div>`;
+    }
+    h += `</div></div>`;
+    $('variant').innerHTML = h;
+}
+
+// ---------------------------------------------------------------- render: overlap table
+function renderTable() {
+    const order = laneOrder();
+    const pos = {};
+    order.forEach((id, i) => pos[id] = i);
+    const cltFrom = new Map();
+    A.clt.forEach(c => { if (!cltFrom.has(c.from)) cltFrom.set(c.from, []); cltFrom.get(c.from).push(c); });
+
+    let h = `<table class="ov-table"><thead><tr>
+        <th style="width:24%">Step</th>
+        <th style="width:34%">Overlap<small>Related-lane steps active at the same time</small></th>
+        <th>Cross lane transitions exiting<small>→ destination · record pairs · avg Δ</small></th>
+    </tr></thead><tbody>`;
+    order.forEach(id => {
+        const n = G.nodeById.get(id);
+        const vis = [...A.visited.values()].filter(v => v.node === id).sort((a, b) => a.first - b.first || n.states.indexOf(a.state) - n.states.indexOf(b.state));
+        const unvisited = n.states.filter(s => !A.visited.has(nk(id, s)));
+        h += `<tr class="lane-h"><td colspan="3"><span class="rec-badge" style="--c:${G.color(id).c};margin-right:6px">${esc(G.ab[id])}</span>${esc(n.name)}
+            ${unvisited.length ? `<span class="muted" style="text-transform:none;letter-spacing:0;font-weight:400;margin-left:6px">not visited: ${unvisited.map(esc).join(', ')}</span>` : ''}</td></tr>`;
+        vis.forEach(v => {
+            const ovm = A.ov.get(v.nk);
+            const ovHtml = ovm && ovm.size
+                ? [...ovm.entries()].sort((a, b) => pos[splitNk(a[0])[0]] - pos[splitNk(b[0])[0]]).map(([k, pairs]) => chip(k, { title: `Record pairs: ${[...pairs].join(', ')}` })).join('')
+                : '<span class="none">—</span>';
+            const cl = (cltFrom.get(v.nk) || []);
+            const clHtml = cl.length
+                ? cl.map(c => {
+                    const draw = G.related(c.fromNode, c.toNode);
+                    const tip = `${[...c.pairs].join(', ')} · average start delay ${fmt(c.avg)} ${periodWord(c.avg)}` + (draw ? '' : '\nNot drawn: these lanes are not directly related');
+                    return `<span class="clt-item ${draw ? '' : 'nodraw'}" title="${esc(tip)}">→ ${chip(c.to)}<span class="meta">${c.pairs.size} · Δ${fmt(c.avg)}${draw ? '' : ' · not drawn'}</span></span>`;
+                }).join('')
+                : '<span class="none">—</span>';
+            h += `<tr class="st ${S.selected === v.nk ? 'sel' : ''}" data-nk="${esc(v.nk)}"><td>${chip(v.nk)}</td><td><div class="cell-list">${ovHtml}</div></td><td><div class="cell-list">${clHtml}</div></td></tr>`;
+        });
+    });
+    h += `</tbody></table>`;
+    $('ov-table').innerHTML = h;
+}
+
+// ---------------------------------------------------------------- render: graph
+function renderGraph() {
+    const AG = A;
+    const order = laneOrder();
+    const pos = {};
+    order.forEach((id, i) => pos[id] = i);
+
+    // toolbar
+    $('chk-all').checked = S.showAll;
+    $('lane-mode').innerHTML = S.manualOrder
+        ? `<span class="muted">Manual lane order</span> <button id="btn-auto-order">Auto-order lanes</button>`
+        : `<span class="muted">Lanes auto-ordered · use ‹ › to reorder</span>`;
+    $('sel-chip').innerHTML = S.selected && G.nodeById.has(splitNk(S.selected)[0])
+        ? `<span class="muted">Selected</span> ${chip(S.selected)} <button class="icon" id="btn-clear-sel" title="Clear selection">×</button>` : '';
+
+    const L = order.length, laneW = 158, gap = 66, pad = 14, nodeW = 132, nodeH = 30, rowH = 54, top = 62;
+    const laneX = id => pad + pos[id] * (laneW + gap);
+    const cx = id => laneX(id) + laneW / 2;
+
+    // Rows follow first entry time, so the graph reads top-to-bottom like the timeline reads left-to-right.
+    const vis = [...AG.visited.values()].sort((a, b) => a.first - b.first || pos[a.node] - pos[b.node]);
+    const place = new Map();
+    let row = -1, lastT = null, used = new Set();
+    vis.forEach(v => {
+        if (v.first !== lastT || used.has(v.node)) { row++; used = new Set(); lastT = v.first; }
+        used.add(v.node);
+        place.set(v.nk, { row, visited: true, node: v.node, state: v.state, first: v.first, recs: v.recs });
+    });
+    const maxRow = row, laneNext = {};
+    G.dfs.forEach(n => n.states.forEach(s => {
+        const k = nk(n.id, s);
+        if (place.has(k)) return;
+        const r = (laneNext[n.id] ?? maxRow) + 1;
+        laneNext[n.id] = r;
+        place.set(k, { row: r, visited: false, node: n.id, state: s });
+    }));
+    const rows = Math.max(0, ...[...place.values()].map(p => p.row)) + 1;
+    const W = pad * 2 + L * laneW + (L - 1) * gap, H = top + rows * rowH + 14;
+    const ny = p => top + p.row * rowH + (rowH - nodeH) / 2;
+
+    // Selection + step overlap (adjacent AND related lanes only)
+    const sel = S.selected && place.has(S.selected) ? S.selected : null;
+    const adjRel = (a, b) => G.related(a, b) && Math.abs(pos[a] - pos[b]) === 1;
+    const ovNodes = new Map();
+    if (sel) {
+        const selNode = splitNk(sel)[0];
+        (AG.ov.get(sel) || new Map()).forEach((pairs, k) => { if (adjRel(selNode, splitNk(k)[0])) ovNodes.set(k, pairs); });
+    }
+    const drawClt = [...AG.clt.values()].filter(c => adjRel(c.fromNode, c.toNode) && (S.showAll || (sel && (c.from === sel || c.to === sel))));
+
+    // Hidden relations: related lanes that are not neighbours
+    const hidden = S.nodes.filter(n => n.parent && Math.abs(pos[n.id] - pos[n.parent]) !== 1).map(n => {
+        const between = c => (c.fromNode === n.id && c.toNode === n.parent) || (c.fromNode === n.parent && c.toNode === n.id);
+        const nClt = [...AG.clt.values()].filter(between).length;
+        let nOv = 0;
+        AG.ov.forEach((m, k) => { if (splitNk(k)[0] === n.parent) m.forEach((_, k2) => { if (splitNk(k2)[0] === n.id) nOv++; }); });
+        return { n, nClt, nOv };
+    });
+    $('graph-warn').innerHTML = hidden.length ? `<div class="warn">⚠ ${hidden.map(({ n, nClt, nOv }) =>
+        `<b>${esc(G.nodeById.get(n.parent).name)}</b> and <b>${esc(n.name)}</b> are related but not adjacent: ${nClt} cross lane transition${nClt === 1 ? '' : 's'} and ${nOv} step overlap${nOv === 1 ? '' : 's'} hidden.`).join('<br>⚠ ')}
+        Reorder the swimlanes with ‹ › to see them.</div>` : '';
+
+    let s = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="Roboto, sans-serif" id="graph-svg">
+    <defs>
+        <marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#999"/></marker>
+        <marker id="ao" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#e07b12"/></marker>
+    </defs>
+    <rect x="0" y="0" width="${W}" height="${H}" fill="transparent" data-bg="1"/>`;
+
+    // lanes
+    order.forEach((id, i) => {
+        const n = G.nodeById.get(id), col = G.color(id), x = laneX(id);
+        const parent = n.parent ? G.nodeById.get(n.parent) : null;
+        s += `<rect x="${x}" y="6" width="${laneW}" height="${H - 12}" rx="8" fill="${col.t}" opacity=".6" data-bg="1"/>
+            <rect x="${x}" y="6" width="${laneW}" height="40" rx="8" fill="${col.c}"/>
+            <rect x="${x}" y="36" width="${laneW}" height="10" fill="${col.c}"/>
+            <text x="${x + laneW / 2}" y="23" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">${esc(trunc(n.name, 17))}</text>
+            <text x="${x + laneW / 2}" y="38" text-anchor="middle" font-size="10" fill="#fff" opacity=".85">${parent ? 'child of ' + esc(trunc(parent.name, 12)) : 'primary'}</text>`;
+        if (i > 0) s += `<g class="mv" data-move="${id}" data-dir="-1"><title>Move lane left</title><rect x="${x + 3}" y="13" width="18" height="24" rx="4" fill="transparent"/><text x="${x + 12}" y="30" text-anchor="middle" font-size="16" font-weight="700" fill="#fff">‹</text></g>`;
+        if (i < L - 1) s += `<g class="mv" data-move="${id}" data-dir="1"><title>Move lane right</title><rect x="${x + laneW - 21}" y="13" width="18" height="24" rx="4" fill="transparent"/><text x="${x + laneW - 12}" y="30" text-anchor="middle" font-size="16" font-weight="700" fill="#fff">›</text></g>`;
+    });
+
+    const labels = [];
+    // in-lane transitions
+    AG.inl.forEach(c => {
+        const a = place.get(c.from), b = place.get(c.to);
+        if (!a || !b) return;
+        const x = cx(c.node);
+        const faded = sel && c.from !== sel && c.to !== sel;
+        const op = faded ? .3 : 1;
+        let d, lx, ly;
+        if (b.row === a.row + 1) {
+            d = `M${x},${ny(a) + nodeH} L${x},${ny(b) - 1}`;
+            lx = x + 9; ly = (ny(a) + nodeH + ny(b)) / 2 + 4;
+        } else {
+            const side = b.row > a.row ? 1 : -1;   // forward skips curve right, loops curve left
+            const xs = x + side * nodeW / 2, bulge = xs + side * 26;
+            const y1 = ny(a) + nodeH / 2 + (side > 0 ? 6 : -6), y2 = ny(b) + nodeH / 2 + (side > 0 ? -6 : 6);
+            d = `M${xs},${y1} C${bulge},${y1} ${bulge},${y2} ${xs + side * 1},${y2}`;
+            lx = bulge + side * 2 - (side < 0 ? 12 : 0); ly = (y1 + y2) / 2 + 4;
+        }
+        s += `<path d="${d}" fill="none" stroke="#999" stroke-width="1.5" marker-end="url(#ag)" opacity="${op}"/>`;
+        if (c.recs.size > 1) labels.push(`<text x="${lx}" y="${ly}" font-size="10" fill="#6b7280" opacity="${op}">${c.recs.size}</text>`);
+    });
+
+    // cross lane transitions
+    drawClt.forEach(c => {
+        const a = place.get(c.from), b = place.get(c.to);
+        const dir = pos[c.toNode] > pos[c.fromNode] ? 1 : -1;
+        const off = dir > 0 ? -5 : 5;
+        const x1 = cx(c.fromNode) + dir * nodeW / 2, y1 = ny(a) + nodeH / 2 + off;
+        const x2 = cx(c.toNode) - dir * nodeW / 2, y2 = ny(b) + nodeH / 2 + off;
+        const d = `M${x1},${y1} C${x1 + dir * 42},${y1} ${x2 - dir * 42},${y2} ${x2 - dir * 1},${y2}`;
+        // Nudge labels apart so opposite-direction transitions between the same steps stay readable
+        const mx = (x1 + x2) / 2, my = (y1 + y2) / 2 + off * 0.8;
+        const txt = `${c.pairs.size} · Δ${fmt(c.avg)}`;
+        const tw = txt.length * 5.6 + 10;
+        s += `<g data-clt="${esc(c.key)}"><path d="${d}" fill="none" stroke="transparent" stroke-width="12"/>
+            <path d="${d}" fill="none" stroke="#e07b12" stroke-width="2" marker-end="url(#ao)"/></g>`;
+        labels.push(`<g data-clt="${esc(c.key)}"><rect x="${mx - tw / 2}" y="${my - 8}" width="${tw}" height="16" rx="8" fill="#fff" stroke="#e07b12"/>
+            <text x="${mx}" y="${my + 4}" text-anchor="middle" font-size="10" font-weight="700" fill="#9a5a0c">${txt}</text></g>`);
+    });
+
+    // steps
+    place.forEach((p, k) => {
+        const x = cx(p.node) - nodeW / 2, y = ny(p);
+        const isSel = k === sel, isOv = ovNodes.has(k);
+        const stroke = isSel ? '#1453b8' : isOv ? '#e07b12' : '#b0b0b0';
+        const sw = isSel ? 2.5 : isOv ? 2 : 1;
+        const fill = isOv ? '#fff4e5' : p.visited ? '#fff' : '#fafafa';
+        const op = sel && !isSel && !isOv ? .4 : 1;
+        const title = p.visited
+            ? `${G.nodeById.get(p.node).name} · ${p.state}\nFirst entered ${T(p.first)} · ${p.recs.size} record${p.recs.size === 1 ? '' : 's'}${isOv ? '\nOverlaps selected step: ' + [...ovNodes.get(k)].join(', ') : ''}`
+            : `${G.nodeById.get(p.node).name} · ${p.state}\nNot visited`;
+        s += `<g class="nd" data-nk="${esc(k)}" opacity="${op}"><title>${esc(title)}</title>
+            <rect x="${x}" y="${y}" width="${nodeW}" height="${nodeH}" rx="6" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" ${p.visited ? '' : 'stroke-dasharray="4 3"'}/>
+            <text x="${x + 10}" y="${y + 19}" font-size="12" font-weight="600" fill="${p.visited ? '#1d1d1d' : '#9ca3af'}">${esc(trunc(p.state, 15))}</text>
+            ${p.visited ? `<text x="${x + nodeW - 8}" y="${y + 19}" text-anchor="end" font-size="10" fill="#9ca3af">${T(p.first)}</text>` : ''}
+        </g>`;
+    });
+    s += labels.join('');
+    if (!sel && !S.showAll && AG.clt.size) {
+        s += `<text x="${W / 2}" y="${H - 4}" text-anchor="middle" font-size="10" fill="#9ca3af">Select a step to see its overlap and cross lane transitions</text>`;
+    }
+    s += `</svg>`;
+    $('graph').innerHTML = s;
+    graphCltIndex = AG.clt;
+}
+let graphCltIndex = new Map();
+
+// ---------------------------------------------------------------- orchestration
+function renderAnalysis() {
+    fillToEnd();
+    derive();
+    A = analyze();
+    renderTimeline();
+    renderVariant();
+    renderTable();
+    renderGraph();
+}
+function renderAll() {
+    derive();
+    renderDefinition();
+    renderAnalysis();
+}
+function select(k) {
+    S.selected = S.selected === k ? null : k;
+    renderAnalysis();
+}
+
+// ---------------------------------------------------------------- events: definition
+$('preset').addEventListener('change', e => loadPreset(+e.target.value));
+$('btn-reset').addEventListener('click', () => loadPreset(presetIdx));
+$('btn-add-node').addEventListener('click', () => {
+    if (S.nodes.length >= MAX_NODES) return;
+    const usedCi = new Set(S.nodes.map(n => n.ci));
+    const ci = [0, 1, 2, 3, 4].find(i => !usedCi.has(i));
+    const usedNames = new Set(S.nodes.map(n => n.name));
+    const letter = 'ABCDEF'.split('').find(l => !usedNames.has('Object ' + l)) || 'Z';
+    const n = { id: uid('n'), name: 'Object ' + letter, parent: G.root.id, states: ['New', 'Active', 'Done'], ci };
+    S.nodes.push(n);
+    derive();
+    const rootRec = G.recOrder.find(r => !r.parent);
+    newRecord(n.id, rootRec.id);
+    S.manualOrder = null;
+    renderAll();
+});
+$('def-nodes').addEventListener('change', e => {
+    const tr = e.target.closest('tr[data-id]');
+    if (!tr) return;
+    const n = G.nodeById.get(tr.dataset.id);
+    if (e.target.classList.contains('n-name')) {
+        n.name = e.target.value.trim() || n.name;
+    } else if (e.target.classList.contains('n-parent')) {
+        n.parent = e.target.value;
+        S.manualOrder = null;
+        fixup();
+    } else if (e.target.classList.contains('n-states')) {
+        const next = [...new Set(e.target.value.split(',').map(s => s.trim()).filter(Boolean))];
+        if (next.length) {
+            // Renamed states keep their position in the lifecycle
+            const old = n.states;
+            S.records.filter(r => r.node === n.id).forEach(r => r.segs.forEach(g => {
+                if (!next.includes(g.s)) g.s = next[Math.min(Math.max(0, old.indexOf(g.s)), next.length - 1)];
+            }));
+            n.states = next;
+            if (S.selected && splitNk(S.selected)[0] === n.id && !next.includes(splitNk(S.selected)[1])) S.selected = null;
+            fixup();
+        }
+    }
+    renderAll();
+});
+$('def-nodes').addEventListener('click', e => {
+    const b = e.target.closest('.n-del');
+    if (!b) return;
+    const id = b.closest('tr').dataset.id;
+    const drop = new Set();
+    (function w(x) { drop.add(x); G.kids[x].forEach(k => w(k.id)); })(id);
+    S.nodes = S.nodes.filter(n => !drop.has(n.id));
+    if (S.selected && drop.has(splitNk(S.selected)[0])) S.selected = null;
+    S.manualOrder = null;
+    fixup();
+    renderAll();
+});
+
+// ---------------------------------------------------------------- events: timeline
+$('add-node').addEventListener('change', renderAddControls);
+$('btn-add-rec').addEventListener('click', () => {
+    const nodeId = $('add-node').value, parentId = $('add-parent').value;
+    if (!nodeId || !parentId) return;
+    newRecord(nodeId, parentId);
+    renderAnalysis();
+});
+$('per-minus').addEventListener('click', () => {
+    const min = Math.max(MIN_PERIODS, ...S.records.map(r => r.start + minSpan(r)));
+    if (S.periods > min) { S.periods--; renderAnalysis(); }
+});
+$('per-plus').addEventListener('click', () => {
+    if (S.periods < MAX_PERIODS) { S.periods++; renderAnalysis(); }
+});
+
+let drag = null;
+$('timeline').addEventListener('pointerdown', e => {
+    if (e.button !== 0) return;
+    const seg = e.target.closest('.seg');
+    if (!seg) return;
+    const r = G.recById.get(seg.dataset.rec), i = +seg.dataset.i;
+    const resize = !!e.target.closest('.rh');
+    drag = { r, i, resize, x0: e.clientX, orig: resize ? r.segs[i].d : r.start, moved: false, rect: seg.getBoundingClientRect() };
+    closePop();
+    e.preventDefault();
+    window.addEventListener('pointermove', onDragMove);
+    window.addEventListener('pointerup', onDragEnd, { once: true });
+});
+function onDragMove(e) {
+    if (!drag) return;
+    const dx = e.clientX - drag.x0;
+    if (Math.abs(dx) > 3) drag.moved = true;
+    const delta = Math.round(dx / PW);
+    const { r, i } = drag;
+    if (drag.resize) {
+        const others = minSpan(r) - r.segs[i].d;   // earlier states + 1 period kept for the last state
+        const d = Math.max(1, Math.min(S.periods - r.start - others, drag.orig + delta));
+        if (d !== r.segs[i].d) { r.segs[i].d = d; renderAnalysis(); }
+    } else {
+        const st = Math.max(0, Math.min(S.periods - minSpan(r), drag.orig + delta));
+        if (st !== r.start) { r.start = st; renderAnalysis(); }
+    }
+}
+function onDragEnd() {
+    window.removeEventListener('pointermove', onDragMove);
+    const d = drag;
+    drag = null;
+    if (d && !d.moved) {
+        const e = events(d.r)[d.i];
+        S.selected = e.nk;
+        renderAnalysis();
+        const el = document.querySelector(`.seg[data-rec="${d.r.id}"][data-i="${d.i}"]`);
+        if (el) openPop(d.r.id, d.i, el.getBoundingClientRect());
+    }
+}
+$('timeline').addEventListener('click', e => {
+    const del = e.target.closest('[data-del]');
+    if (del) {
+        const drop = new Set();
+        (function w(id) { drop.add(id); S.records.filter(q => q.parent === id).forEach(q => w(q.id)); })(del.dataset.del);
+        S.records = S.records.filter(r => !drop.has(r.id));
+        if (drop.has(S.hoverLeaf)) S.hoverLeaf = null;
+        renderAnalysis();
+        return;
+    }
+    const add = e.target.closest('[data-add]');
+    if (add) {
+        const r = G.recById.get(add.dataset.add);
+        insertAfter(r, r.segs.length - 1);
+        renderAnalysis();
+    }
+});
+
+// ---------------------------------------------------------------- popover
+let popCtx = null;
+function openPop(recId, i, rect) {
+    const r = G.recById.get(recId), n = G.nodeById.get(r.node), e = events(r)[i];
+    const pop = $('popover');
+    pop.innerHTML = `<div class="pop-h">${recBadge(r)} <b>${esc(n.name)}</b> <span class="muted">${T(e.start)}${e.end - e.start > 1 ? '–' + T(e.end - 1) : ''}</span><button class="x" data-act="close">×</button></div>
+        <label>State <select data-act="state">${n.states.map(s => `<option ${s === e.state ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select></label>
+        ${isLast(r, i)
+            ? `<div class="pop-row muted">Last state: fills to ${T(S.periods - 1)}</div>`
+            : `<div class="pop-row">Duration <button class="icon" data-act="dur-" ${r.segs[i].d <= 1 ? 'disabled' : ''}>−</button><b>${r.segs[i].d}</b><button class="icon" data-act="dur+" ${r.start + minSpan(r) >= MAX_PERIODS && r.segs[r.segs.length - 1].d <= 1 ? 'disabled' : ''}>+</button> <span class="muted">${periodWord(r.segs[i].d)}</span></div>`}
+        <div class="pop-row"><button data-act="ins">+ Insert state after</button><button data-act="del" ${r.segs.length < 2 ? 'disabled' : ''}>Delete state</button></div>`;
+    const left = Math.min(rect.left + window.scrollX, window.scrollX + document.documentElement.clientWidth - 262);
+    pop.style.left = Math.max(8, left) + 'px';
+    pop.style.top = (rect.bottom + window.scrollY + 6) + 'px';
+    pop.hidden = false;
+    popCtx = { recId, i };
+}
+function closePop() { $('popover').hidden = true; popCtx = null; }
+function reopenPop(recId, i) {
+    const el = document.querySelector(`.seg[data-rec="${recId}"][data-i="${i}"]`);
+    if (el) openPop(recId, i, el.getBoundingClientRect()); else closePop();
+}
+$('popover').addEventListener('click', e => {
+    const act = e.target.closest('[data-act]')?.dataset.act;
+    if (!act || !popCtx || act === 'state') return;
+    const r = G.recById.get(popCtx.recId), i = popCtx.i;
+    if (act === 'close') return closePop();
+    if (act === 'dur-' && r.segs[i].d > 1) r.segs[i].d--;
+    if (act === 'dur+') { r.segs[i].d++; ensureFit(r); }
+    if (act === 'ins') insertAfter(r, i);
+    if (act === 'del' && r.segs.length > 1) {
+        r.segs.splice(i, 1);
+        normalize(r);
+        S.selected = null;
+        renderAnalysis();
+        return closePop();
+    }
+    renderAnalysis();
+    reopenPop(r.id, Math.min(act === 'ins' ? i + 1 : i, r.segs.length - 1));
+});
+$('popover').addEventListener('change', e => {
+    if (e.target.dataset.act !== 'state' || !popCtx) return;
+    const r = G.recById.get(popCtx.recId);
+    r.segs[popCtx.i].s = e.target.value;
+    normalize(r);
+    S.selected = nk(r.node, e.target.value);
+    renderAnalysis();
+    closePop();
+});
+document.addEventListener('pointerdown', e => {
+    if (!$('popover').hidden && !e.target.closest('#popover') && !e.target.closest('.seg')) closePop();
+});
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closePop(); if (S.selected) { S.selected = null; renderAnalysis(); } }
+});
+
+// ---------------------------------------------------------------- events: variant + table + graph
+$('variant').addEventListener('mouseover', e => {
+    const row = e.target.closest('[data-leaf]');
+    const id = row ? row.dataset.leaf : null;
+    if (id !== S.hoverLeaf) {
+        S.hoverLeaf = id;
+        renderTimeline();
+        document.querySelectorAll('#variant tr[data-leaf]').forEach(tr => tr.classList.toggle('hov', tr.dataset.leaf === id));
+    }
+});
+$('variant').addEventListener('mouseleave', () => {
+    if (S.hoverLeaf) { S.hoverLeaf = null; renderTimeline(); document.querySelectorAll('#variant tr.hov').forEach(tr => tr.classList.remove('hov')); }
+});
+$('ov-table').addEventListener('click', e => {
+    const tr = e.target.closest('tr.st');
+    if (tr) select(tr.dataset.nk);
+});
+$('chk-all').addEventListener('change', e => { S.showAll = e.target.checked; renderGraph(); });
+$('sec-graph').addEventListener('click', e => {
+    if (e.target.closest('#btn-auto-order')) { S.manualOrder = null; renderTable(); renderGraph(); return; }
+    if (e.target.closest('#btn-clear-sel')) { S.selected = null; renderAnalysis(); return; }
+});
+$('graph').addEventListener('click', e => {
+    const mv = e.target.closest('[data-move]');
+    if (mv) {
+        const order = laneOrder().slice();
+        const i = order.indexOf(mv.dataset.move), j = i + +mv.dataset.dir;
+        if (j < 0 || j >= order.length) return;
+        [order[i], order[j]] = [order[j], order[i]];
+        S.manualOrder = order;
+        renderTable();
+        renderGraph();
+        return;
+    }
+    const nd = e.target.closest('[data-nk]');
+    if (nd) return select(nd.dataset.nk);
+    if (e.target.closest('[data-bg]') && S.selected) { S.selected = null; renderAnalysis(); }
+});
+
+// Hovercard for cross lane transitions
+const hc = $('hovercard');
+$('graph').addEventListener('mousemove', e => {
+    const g = e.target.closest('[data-clt]');
+    if (!g) { hc.hidden = true; return; }
+    const c = graphCltIndex.get(g.dataset.clt);
+    if (!c) { hc.hidden = true; return; }
+    const [, fs] = splitNk(c.from), [, ts] = splitNk(c.to);
+    const ex = c.inst[0];
+    hc.innerHTML = `<div class="hc-t">Cross lane transition ${chip(c.from)} → ${chip(c.to)}</div>
+        <div><span class="hc-k">Record pairs:</span> <b>${c.pairs.size}</b> <span class="muted">(${[...c.pairs].map(esc).join(', ')})</span></div>
+        <div><span class="hc-k">Avg start delay:</span> <b>${fmt(c.avg)} ${periodWord(c.avg)}</b></div>
+        <p>In a leaf ordering, <b>${esc(ts)}</b> was the next state entry after <b>${esc(fs)}</b>, in a different, directly related lane.
+        The delay is the time between the two entries (e.g. ${esc(G.label(ex.a.rec))} entered ${esc(fs)} at ${T(ex.a.start)}, ${esc(G.label(ex.b.rec))} entered ${esc(ts)} at ${T(ex.b.start)}).</p>`;
+    hc.hidden = false;
+    const x = Math.min(e.pageX + 14, window.scrollX + document.documentElement.clientWidth - 316);
+    hc.style.left = x + 'px';
+    hc.style.top = (e.pageY + 14) + 'px';
+});
+$('graph').addEventListener('mouseleave', () => hc.hidden = true);
+
+// ---------------------------------------------------------------- boot
+loadPreset(0);
+</script>
+</body>
+</html>
